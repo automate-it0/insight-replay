@@ -1,0 +1,200 @@
+name: CI
+
+# CI pipeline for Insight Replay.
+# Shift-Left: catch lint / type / test / build issues in CI, never in production.
+# Faster-is-Safer: 4 jobs run in parallel; old runs on the same branch are cancelled.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same ref — frees runners + keeps PR signal clean.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+timeout-minutes: 15
+
+jobs:
+  # --- Job 1: Lint -----------------------------------------------------------
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup bun
+        uses: oven/setup-bun@v2
+        with:
+          bun-version: "1.3.0"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          cache: "npm"
+
+      - name: Cache bun install
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run ESLint
+        run: bun run lint
+
+  # --- Job 2: Type-check -----------------------------------------------------
+  type-check:
+    name: Type-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup bun
+        uses: oven/setup-bun@v2
+        with:
+          bun-version: "1.3.0"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          cache: "npm"
+
+      - name: Cache bun install
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # `tsc --noEmit` resolves the generated Prisma client types. Without
+      # this step the type-check fails with "Module '@prisma/client' has no
+      # exported member 'PrismaClient'".
+      - name: Generate Prisma client
+        run: bun run db:generate
+
+      # next.config.ts has typescript.ignoreBuildErrors: true, so `next build`
+      # would happily ship broken types. `tsc --noEmit` is the real gate.
+      - name: Run tsc --noEmit
+        run: bunx tsc --noEmit
+
+  # --- Job 3: Test -----------------------------------------------------------
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup bun
+        uses: oven/setup-bun@v2
+        with:
+          bun-version: "1.3.0"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          cache: "npm"
+
+      - name: Cache bun install
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # api-contracts.test.ts auto-skips if the dev server is unreachable,
+      # so CI runs cleanly without booting a server.
+      - name: Run tests
+        run: bun test --coverage tests/
+
+  # --- Job 4: Build (only on push to main) ----------------------------------
+  # PRs skip the slow `next build` step to keep feedback fast. The lint + test
+  # jobs above already gate PRs; build runs on merge to main as a final safety net.
+  build:
+    name: Build
+    needs: [lint, type-check, test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Prisma needs a writable DATABASE_URL or it refuses to instantiate.
+      # Use a throwaway SQLite file in /tmp — we're only validating the build,
+      # not running migrations against real data.
+      DATABASE_URL: file:/tmp/test.db
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup bun
+        uses: oven/setup-bun@v2
+        with:
+          bun-version: "1.3.0"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          cache: "npm"
+
+      - name: Cache bun install
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: bun run db:generate
+
+      - name: Cache .next/cache
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-next-cache-${{ hashFiles('**/*.ts', '**/*.tsx', 'next.config.ts') }}
+          restore-keys: |
+            ${{ runner.os }}-next-cache-
+
+      # `next build` runs the app's boot-time secret assertions (see
+      # src/lib/startup.ts, src/lib/session.ts and src/lib/crypto.ts). Under
+      # production NODE_ENV the server refuses to start unless BOTH
+      # SESSION_SECRET (cookie HMAC) and ENCRYPTION_KEY (field encryption)
+      # are set to strong, non-placeholder values — >= 16 chars spanning all
+      # four character classes. These are throwaway values generated for
+      # this build only: they never reach a deployed environment, and the
+      # suffixes guarantee the character classes regardless of what openssl
+      # happens to emit.
+      - name: Generate build-time secrets
+        run: |
+          echo "SESSION_SECRET=$(openssl rand -base64 48 | tr -d '\n')Aa1!" >> "$GITHUB_ENV"
+          echo "ENCRYPTION_KEY=$(openssl rand -base64 48 | tr -d '\n')Bb2@" >> "$GITHUB_ENV"
+          echo "ADMIN_TOKEN=$(openssl rand -base64 32 | tr -d '\n')Cc3#" >> "$GITHUB_ENV"
+          echo "ALLOWED_ORIGINS=http://localhost:3000" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: bun run build

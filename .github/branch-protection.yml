@@ -1,0 +1,73 @@
+# .github/branch-protection.yml
+#
+# Probot-settings format — loaded by the probot/settings GitHub App on every
+# push that touches a file under .github/. The App syncs this YAML into the
+# repo's Settings -> Branches -> Branch protection rules for `main`.
+#
+# Reference:
+#   https://github.com/probot/settings#branch-protection
+#
+# Status check context names use the canonical GitHub Actions format
+#   `<workflow name> / <job name>`
+# matching the convention already used in .github/workflows/quality-gate.yml
+# (which itself documents "Quality Gate / quality-gate" as the required
+# check context) and in docs/ci-cd.md §"Branch protection recommendations".
+#
+# Branch:  main   (the default + deployable branch — see docs/git-workflow.md §1)
+#   * ci.yml          -> workflow name "CI",            jobs: lint, type-check, test, build
+#   * security.yml    -> workflow name "Security",      jobs: audit-deps, secrets-scan
+#   * quality-gate.yml-> workflow name "Quality Gate",  job:  quality-gate
+branches:
+  - name: main
+    protection:
+
+      # Enforce the same protection rules on repository admins — no escape
+      # hatch. Matches docs/git-workflow.md §4 ("Do not allow bypassing the
+      # above") and docs/ci-cd.md ("Do not allow bypassing the above settings
+      # — even for admins").
+      enforce_admins: true
+
+      # Required status checks — each context below must be green before a
+      # PR can merge. Pulled from the three workflows under .github/workflows/.
+      required_status_checks:
+        contexts:
+          # ---- ci.yml (workflow name "CI") — Shift-Left gate on every PR + push ----
+          - "CI / Lint"                       # job `lint`,       job name: Lint            (bun run lint / ESLint)
+          - "CI / Type-check"                 # job `type-check`, job name: Type-check    (bunx tsc --noEmit)
+          - "CI / Test"                       # job `test`,       job name: Test            (bun test tests/)
+          - "CI / Build"                      # job `build`,      job name: Build           (bun run build, main-only — gated by `if: github.event_name == 'push' && github.ref == 'refs/heads/main'`)
+
+          # ---- security.yml (workflow name "Security") — supply-chain + secret-leak gates ----
+          - "Security / Audit dependencies"     # job `audit-deps`,    job name: Audit dependencies  (bun audit)
+          - "Security / Scan for leaked secrets"  # job `secrets-scan`, job name: Scan for leaked secrets  (TruffleHog OSS)
+
+          # ---- quality-gate.yml (workflow name "Quality Gate") — the merge gate ----
+          # Transitively requires ci.yml to pass (it inspects ci.yml's
+          # conclusion via the `workflow_run` trigger), so this single check
+          # is the canonical "Quality Gate / quality-gate" referenced in
+          # quality-gate.yml comments + docs/ci-cd.md.
+          - "Quality Gate / quality-gate"     # job `quality-gate`, job name: quality-gate
+
+      # PR review policy — see docs/git-workflow.md §3 ("Review cadence").
+      required_pull_request_reviews:
+        # 1 approving review (CODEOWNERS covers the 2-reviewer case for
+        # sensitive paths — src/middleware.ts, src/lib/auth.ts, src/lib/sanitize.ts,
+        # prisma/schema.prisma — see docs/git-workflow.md §4 table row 3).
+        required_approving_review_count: 1
+        # Auto-dismiss stale approvals when new commits land on the PR head —
+        # forces a re-review after every push, so a stale approve can never
+        # green-light code the reviewer never saw.
+        dismiss_stale_reviews: true
+        # Require a review from the matching CODEOWNERS entry. Pairs with
+        # .github/CODEOWNERS (created by P39-A) — e.g. changes to
+        # src/lib/auth.ts must be approved by the security owner.
+        require_code_owner_reviews: true
+
+      # No merge commits on `main` — every PR must be rebase-merged or
+      # squash-merged. Pairs with the project's squash-merge default
+      # (docs/git-workflow.md §6).
+      required_linear_history: true
+
+      # No force-pushes to `main` — pushed commits are immutable once landed.
+      # Matches docs/git-workflow.md §4 ("Force pushes: denied").
+      allow_force_pushes: false

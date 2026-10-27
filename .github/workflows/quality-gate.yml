@@ -1,0 +1,76 @@
+name: Quality Gate
+
+# The merge gate. This workflow runs AFTER the CI workflow finishes, and:
+#   1. Verifies the CI workflow itself succeeded (lint + type-check + test all green).
+#   2. Greps production source for stray `console.log` calls.
+# If anything fails, the gate is red and the PR cannot merge.
+#
+# In GitHub branch protection, set "Quality Gate / quality-gate" as a required
+# status check. Because this job only passes when CI also passed, it transitively
+# enforces lint + test (and the console.log hygiene rule) before merge.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  quality-gate:
+    name: quality-gate
+    # Only run if the CI workflow concluded. If CI failed, this gate still runs
+    # but fails immediately — that way the PR shows a red Quality Gate check
+    # rather than a missing one.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify CI workflow succeeded
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const conclusion = context.payload.workflow_run.conclusion;
+            const headSha = context.payload.workflow_run.head_sha;
+            const runHtmlUrl = context.payload.workflow_run.html_url;
+            if (conclusion !== 'success') {
+              core.setFailed(
+                `CI workflow on ${headSha} did not succeed (conclusion: ${conclusion}).` +
+                ` See: ${runHtmlUrl}` +
+                ` — Quality Gate cannot pass until lint, type-check, and test are all green.`
+              );
+            } else {
+              core.info(`CI workflow on ${headSha} succeeded. Proceeding to gate checks.`);
+            }
+
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Check for console.log in production source
+        run: |
+          set -euo pipefail
+          # Production code lives under src/ (app code) and mini-services/ (live
+          # socket.io service). Tests and scripts are allowed to use console.log.
+          # Allow-list: anything under tests/, scripts/, .github/, docs/, examples/.
+          matches=$(grep -rnE "console\.log" \
+            --include="*.ts" --include="*.tsx" \
+            --exclude-dir=node_modules \
+            src/ mini-services/ 2>/dev/null || true)
+          if [ -n "$matches" ]; then
+            echo "::error::Found console.log calls in production source:"
+            echo "$matches"
+            echo ""
+            echo "Remove them or replace with the structured logger in src/lib/observability.ts"
+            exit 1
+          else
+            echo "No console.log calls found in src/ or mini-services/."
+          fi
+
+      - name: Quality gate passed
+        run: |
+          echo "✓ Quality gate passed"
+          echo "  - CI workflow succeeded (lint + type-check + test green)"
+          echo "  - No console.log in production source"
