@@ -60,7 +60,7 @@ jobs:
           bun-version: "1.3.0"
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         # No `cache:` input on purpose: this project resolves dependencies
         # with bun (bun.lock) and ships no npm/yarn lockfile, so setup-node
         # cannot compute an npm cache key and the step would fail with
