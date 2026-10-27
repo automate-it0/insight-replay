@@ -18,7 +18,9 @@ concurrency:
 permissions:
   contents: read
 
-timeout-minutes: 15
+# NOTE: `timeout-minutes` is a JOB-level setting only — GitHub Actions
+# rejects the whole workflow file with "Unexpected value 'timeout-minutes'"
+# if it appears at the top level. Each job below sets its own budget.
 
 jobs:
   # --- Job 1: Lint -----------------------------------------------------------
