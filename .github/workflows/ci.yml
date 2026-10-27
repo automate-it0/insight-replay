@@ -45,7 +45,7 @@ jobs:
         # "Dependencies lock file is not found".
 
       - name: Cache bun install
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
@@ -80,7 +80,7 @@ jobs:
         # "Dependencies lock file is not found".
 
       - name: Cache bun install
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
@@ -130,7 +130,7 @@ jobs:
         # "Dependencies lock file is not found".
 
       - name: Cache bun install
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
@@ -176,7 +176,7 @@ jobs:
         # "Dependencies lock file is not found".
 
       - name: Cache bun install
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
@@ -190,7 +190,7 @@ jobs:
         run: bun run db:generate
 
       - name: Cache .next/cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .next/cache
           key: ${{ runner.os }}-next-cache-${{ hashFiles('**/*.ts', '**/*.tsx', 'next.config.ts') }}
