@@ -39,8 +39,10 @@ jobs:
 
       - name: Setup Node
         uses: actions/setup-node@v4
-        with:
-          cache: "npm"
+        # No `cache:` input on purpose: this project resolves dependencies
+        # with bun (bun.lock) and ships no npm/yarn lockfile, so setup-node
+        # cannot compute an npm cache key and the step would fail with
+        # "Dependencies lock file is not found".
 
       - name: Cache bun install
         uses: actions/cache@v4
@@ -72,8 +74,10 @@ jobs:
 
       - name: Setup Node
         uses: actions/setup-node@v4
-        with:
-          cache: "npm"
+        # No `cache:` input on purpose: this project resolves dependencies
+        # with bun (bun.lock) and ships no npm/yarn lockfile, so setup-node
+        # cannot compute an npm cache key and the step would fail with
+        # "Dependencies lock file is not found".
 
       - name: Cache bun install
         uses: actions/cache@v4
@@ -113,8 +117,10 @@ jobs:
 
       - name: Setup Node
         uses: actions/setup-node@v4
-        with:
-          cache: "npm"
+        # No `cache:` input on purpose: this project resolves dependencies
+        # with bun (bun.lock) and ships no npm/yarn lockfile, so setup-node
+        # cannot compute an npm cache key and the step would fail with
+        # "Dependencies lock file is not found".
 
       - name: Cache bun install
         uses: actions/cache@v4
@@ -157,8 +163,10 @@ jobs:
 
       - name: Setup Node
         uses: actions/setup-node@v4
-        with:
-          cache: "npm"
+        # No `cache:` input on purpose: this project resolves dependencies
+        # with bun (bun.lock) and ships no npm/yarn lockfile, so setup-node
+        # cannot compute an npm cache key and the step would fail with
+        # "Dependencies lock file is not found".
 
       - name: Cache bun install
         uses: actions/cache@v4
