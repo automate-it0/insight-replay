@@ -96,6 +96,13 @@ jobs:
       - name: Generate Prisma client
         run: bun run db:generate
 
+      # The socket.io live service is a standalone package with its own
+      # package.json + bun.lock. Its dependencies must be present for the
+      # root type-check to resolve the `socket.io` types.
+      - name: Install live-service dependencies
+        working-directory: mini-services/live-service
+        run: bun install --frozen-lockfile
+
       # next.config.ts has typescript.ignoreBuildErrors: true, so `next build`
       # would happily ship broken types. `tsc --noEmit` is the real gate.
       - name: Run tsc --noEmit
