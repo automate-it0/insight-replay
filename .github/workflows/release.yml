@@ -1,0 +1,183 @@
+name: Release
+
+# Release workflow for Insight Replay.
+#
+# Triggered by pushing a `v*` git tag (e.g. `v0.7.0-SECURE-34L`, `v1.0.0`).
+#   1. build   — checkout, setup bun, bun install, bun run build. The
+#                package.json `build` script runs `next build && cp -r
+#                .next/static .next/standalone/.next/ && cp -r public
+#                .next/standalone/`, so `.next/standalone/` is a fully
+#                self-contained server bundle (Next.js `output: "standalone"`
+#                in next.config.ts). We tar+gzip that directory and upload
+#                it as a workflow artifact.
+#   2. release — needs build, downloads the artifact, extracts the section
+#                of CHANGELOG.md whose `## [X.Y.Z]` header matches the tag
+#                (with the leading `v` stripped), and creates a GitHub
+#                Release with that body and the standalone tarball +
+#                sha256 checksum attached via softprops/action-gh-release@v2.
+#
+# Least-privilege: workflow-level `permissions: { contents: write }`
+# (required by softprops/action-gh-release to create the release). The
+# `build` job overrides to the tighter `contents: read` since it only needs
+# to check out the repo.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+# Never cancel an in-flight release — two `v*` tags pushed in quick
+# succession should each produce their own release, not race.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # --- Job 1: Build standalone artifact -------------------------------------
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Tighter than the workflow-level contents: write — this job only
+    # needs to read the repo.
+    permissions:
+      contents: read
+    env:
+      # Prisma needs a writable DATABASE_URL or it refuses to instantiate.
+      # Use a throwaway SQLite file in /tmp — we're only validating the
+      # build, not running migrations against real data. (Mirrors ci.yml.)
+      DATABASE_URL: file:/tmp/test.db
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup bun
+        uses: oven/setup-bun@v2
+        with:
+          bun-version: "1.3.0"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          cache: "npm"
+
+      - name: Cache bun install
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # Prisma client must be generated before `next build` runs, otherwise
+      # the `@prisma/client` import in src/lib/db.ts fails.
+      - name: Generate Prisma client
+        run: bun run db:generate
+
+      - name: Cache .next/cache
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-next-cache-${{ hashFiles('**/*.ts', '**/*.tsx', 'next.config.ts') }}
+          restore-keys: |
+            ${{ runner.os }}-next-cache-
+
+      # package.json build script produces a self-contained server bundle
+      # under .next/standalone/ (server.js + .next/static + public/).
+      - name: Build
+        run: bun run build
+
+      - name: Package standalone artifact
+        run: |
+          set -euo pipefail
+          # Tar+gzip the standalone server bundle. Compresses the
+          # node_modules subset Next.js traced into the standalone output.
+          cd .next
+          tar -czf ../insight-replay-standalone-${{ github.ref_name }}.tar.gz \
+            standalone
+          cd ..
+          sha256sum insight-replay-standalone-${{ github.ref_name }}.tar.gz \
+            > insight-replay-standalone-${{ github.ref_name }}.tar.gz.sha256
+          ls -lh insight-replay-standalone-${{ github.ref_name }}.tar.gz*
+
+      - name: Upload standalone artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: insight-replay-standalone-${{ github.ref_name }}
+          path: |
+            insight-replay-standalone-${{ github.ref_name }}.tar.gz
+            insight-replay-standalone-${{ github.ref_name }}.tar.gz.sha256
+          retention-days: 30
+          if-no-files-found: error
+
+  # --- Job 2: Publish GitHub Release ---------------------------------------
+  release:
+    name: Release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download standalone artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: insight-replay-standalone-${{ github.ref_name }}
+          path: release-assets
+
+      - name: Extract release notes from CHANGELOG.md
+        id: changelog
+        # Strip the leading `v` from the tag (e.g. `v0.7.0-SECURE-34L`
+        # -> `0.7.0-SECURE-34L`) and pull the matching `## [X.Y.Z] — YYYY-MM-DD`
+        # section out of CHANGELOG.md. The body is everything between the
+        # matching `## [<version>]` header and either:
+        #   - the next `## [` release header (normal mid-file case), or
+        #   - the next `---` separator (defensive — keeps the body from
+        #     pulling in trailing documentation like "## Versioning policy"
+        #     on this file, which sits between release sections and EOF), or
+        #   - EOF (last release in the file).
+        # Subsection headers (`###`) are preserved in the body. Falls back
+        # to a generic line if no match is found. Multi-line body is emitted
+        # via GITHUB_OUTPUT heredoc syntax.
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME#v}"
+          echo "Extracting release notes for version '${TAG}' (tag: ${GITHUB_REF_NAME})"
+          BODY=$(awk -v ver="${TAG}" '
+            $0 ~ "^## \\[" ver "\\]"   { found=1; next }
+            found && /^## \[/           { exit }
+            found && /^---$/            { exit }
+            found                       { print }
+          ' CHANGELOG.md)
+          if [ -z "${BODY}" ]; then
+            BODY="Release ${TAG}. See CHANGELOG.md for full details."
+          fi
+          {
+            echo "body<<EOF"
+            echo "${BODY}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          # Release name mirrors the tag (e.g. `v0.7.0-SECURE-34L`).
+          name: ${{ github.ref_name }}
+          # Body is the matching CHANGELOG section (extracted above).
+          body: ${{ steps.changelog.outputs.body }}
+          # Attach the standalone tarball + its sha256 checksum.
+          files: |
+            release-assets/insight-replay-standalone-${{ github.ref_name }}.tar.gz
+            release-assets/insight-replay-standalone-${{ github.ref_name }}.tar.gz.sha256
+          # We provided an explicit body — don't let GitHub also prepend
+          # auto-generated commit log noise on top of it.
+          generate_release_notes: false
+          draft: false
+          prerelease: false

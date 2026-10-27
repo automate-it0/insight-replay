@@ -1,0 +1,119 @@
+# CODEOWNERS — Insight Replay
+#
+# Reference: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-how-your-repository-is-displayed/about-code-owners
+#
+# The single active rule below (`* @ziad-mahmoud`) assigns a placeholder
+# default owner to EVERY path in the repository. The per-area comment
+# lines that follow document the recommended subject-matter reviewers
+# for each major area of the codebase; they are written as comments
+# (prefixed with `#`) so the only enforced owner today is the catchall.
+#
+# Before enabling GitHub branch-protection rules that require code-owner
+# review, replace the `@*-owner` placeholders with real GitHub handles
+# (or GitHub Teams like `@my-org/security`) and uncomment the relevant
+# lines. Each uncommented rule will override the catchall `*` rule for
+# the paths it matches, per GitHub's last-match-wins CODEOWNERS
+# resolution order.
+
+# Default owner — applies to every file in the repository.
+* @ziad-mahmoud
+
+# -------------------------------------------------------------------------
+# Per-area reviewer recommendations (placeholders — see note above).
+# Each line documents the path pattern and the suggested reviewer handle
+# that should be substituted in before branch protection is turned on.
+# -------------------------------------------------------------------------
+
+# Security core: authentication, cryptography, session management,
+# CSRF, and IP banning.
+# Security: src/lib/{auth,crypto,session,csrf,ip-ban}.ts @security-owner
+
+# Security extended: request signing, proof-of-work, project-scoped auth,
+# rate limiting, SSRF guard, login lockout, db encryption at rest,
+# file integrity, security alerts, and the security checklist.
+# Security (extended): src/lib/{db-encryption,file-integrity,login-lockout,pow,pow-client,project-auth,rate-limit,request-signer,ssrf-guard,security-alerts,security-checklist}.ts @security-owner
+
+# Edge middleware (Next.js): enforces security headers, rate limits,
+# and request validation at the platform edge.
+# Security (edge): src/middleware.ts @security-owner
+
+# Security test suites: dedicated security regression tests under
+# tests/security/ and the standalone csrf / rate-limit / sanitize /
+# sanitize-html / observability tests.
+# Security tests: tests/security/** @security-owner
+# Security tests: tests/{csrf,rate-limit,sanitize,sanitize-html,observability}.test.ts @security-owner
+
+# Ingestion & sanitization: event ingestion pipeline, user-agent parsing,
+# and HTML/markdown sanitization used to safely persist replay events.
+# Ingestion: src/lib/{track,ua,sanitize,sanitize-html}.ts @ingestion-owner
+# Ingestion API: src/app/api/track/** @ingestion-owner
+
+# Data layer & persistence: Prisma client, stats in-memory cache, and
+# the data-retention/purge policy.
+# Data: src/lib/{db,cache,retention}.ts @data-owner
+# Prisma schema: prisma/schema.prisma @data-owner
+
+# API surface (project-scoped): the bulk of the REST API under
+# /api/projects/** — stats, sessions, heatmap, insights, alerts,
+# funnels, goals, journeys, segments, dashboards, annotations,
+# errors, experiments, visitors, audit, apikeys, retention, export,
+# compare, protected-test, and realtime.
+# API (projects): src/app/api/projects/** @api-owner
+
+# API surface (auth): setup, login, login PoW, logout, and me.
+# API (auth): src/app/api/auth/** @api-owner
+
+# API surface (admin): retention-stats and retention-purge.
+# API (admin): src/app/api/admin/** @api-owner
+
+# API surface (AI): AI insights + AI session analysis + AI search.
+# API (AI): src/app/api/projects/[id]/ai/** @api-owner
+# API (AI search): src/app/api/projects/[id]/ai-search/** @api-owner
+
+# Frontend (app components): the dashboard tabs, project view, sidebar,
+# recording player, live tab, filter bar, alert bell, AI cards, and
+# supporting helpers/mock components under src/components/app/.
+# Frontend (app): src/components/app/** @frontend-owner
+
+# Frontend (shadcn/ui primitives): the generated shadcn/ui component
+# library under src/components/ui/. Bump only when regenerating from
+# the shadcn CLI — these are vendored, not hand-edited.
+# Frontend (ui): src/components/ui/** @frontend-owner
+
+# Frontend (routes & layout): the Next.js App Router root layout, the
+# home page, login page, download page, global stylesheet, and
+# route handlers not covered by the project/auth/admin/AI buckets
+# above (health, download, csrf-token, seed, route, trap, observability).
+# Frontend (routes): src/app/{layout.tsx,page.tsx,globals.css,login/**,download/**,api/{health,download,csrf-token,seed,route,trap,observability}/**} @frontend-owner
+
+# Realtime mini-service: the standalone Socket.io server under
+# mini-services/live-service/ (port 3004) that broadcasts live cursor
+# snapshots and prunes stale sessions.
+# Realtime: mini-services/live-service/** @realtime-owner
+
+# Deployment & infra: Next.js config, the production Dockerfile, and
+# the Caddyfile reverse-proxy config.
+# Infra: {next.config.ts,Dockerfile,Caddyfile} @infra-owner
+
+# CI/CD: GitHub Actions workflows (ci.yml, quality-gate.yml,
+# release.yml, security.yml) and Dependabot config.
+# CI/CD: .github/{workflows/**,dependabot.yml} @infra-owner
+
+# Tooling scripts: setup, secret generation, ssh tunnel, cron purge,
+# quality + constraints checks, and the IP-ban escalation smoke test.
+# Scripts: scripts/** @infra-owner
+
+# Documentation: the docs/ tree (architecture, api-reference,
+# performance, benchmarks, accessibility-audit, security-audit,
+# simplification, source-verification, plus the ADRs and the rest).
+# Docs: docs/** @docs-owner
+
+# Examples: the websocket example and the examples/README.md index.
+# Examples: examples/** @docs-owner
+
+# Tests (non-security): unit tests for UA parsing, session
+# fingerprinting, API contracts, plus Playwright e2e and shell-based
+# browser specs.
+# Tests: tests/{ua,session-fp,api-contracts}.test.ts @qa-owner
+# E2E tests: tests/e2e/** @qa-owner
+# Browser tests: tests/browser/** @qa-owner

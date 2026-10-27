@@ -1,0 +1,134 @@
+name: Security
+
+# Security scan — runs on every push to main, on PRs to main, and weekly on
+# Sunday 00:00 UTC as a backstop for new CVEs that ship after a PR landed.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * 0'  # weekly Sunday 00:00 UTC
+
+permissions:
+  contents: read
+  security-events: write  # required for CodeQL + Semgrep SARIF uploads to code scanning
+
+# Cancel in-flight runs of the same workflow when a new commit lands on the
+# same ref. PR runs are cancelled; scheduled/main runs are allowed to finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # --- Job 1: Dependency audit ----------------------------------------------
+  audit-deps:
+    name: Audit dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup bun
+        uses: oven/setup-bun@v2
+        with:
+          bun-version: "1.3.0"
+
+      - name: Cache bun install
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # `bun audit` exits non-zero if any vulnerability is found.
+      - name: bun audit
+        run: bun audit
+
+  # --- Job 2: Secrets scan --------------------------------------------------
+  # TruffleHog scans the full git history for leaked secrets/API keys.
+  secrets-scan:
+    name: Scan for leaked secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Need full history so TruffleHog can scan every commit, not just HEAD.
+          fetch-depth: 0
+
+      - name: TruffleHog OSS
+        # Pinned to a specific release tag — was @main (supply-chain risk:
+        # any malicious commit on the upstream default branch would run in CI).
+        uses: trufflesecurity/trufflehog@v3.88.5
+        with:
+          # Scan the working tree + all branches in this checkout.
+          path: .
+          extra_args: --only-verified
+
+  # --- Job 3: SAST (Semgrep) -----------------------------------------------
+  # Static analysis with Semgrep community rulesets. Uploads SARIF findings
+  # to GitHub's code-scanning UI (alongside CodeQL). Covers TS/JS + Next.js/
+  # React + OWASP Top-10 + Node.js-specific patterns.
+  sast-semgrep:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Semgrep scan
+        uses: returntocorp/semgrep-action@v1
+        with:
+          # Curated rulesets covering the project's languages (TS/JS) and
+          # frameworks (Next.js, React) plus generic OWASP Top-10 checks.
+          config: >-
+            p/typescript
+            p/javascript
+            p/react
+            p/nextjs
+            p/owasp-top-ten
+          # Generate a SARIF file so findings appear in GitHub code scanning.
+          generate-sarif: true
+
+      - name: Upload Semgrep SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+
+  # --- Job 4: SAST (CodeQL) -----------------------------------------------
+  # GitHub-native SAST. `init` builds the language database, `analyze` runs
+  # the security queries and uploads results to code scanning. JS/TS is an
+  # interpreted language so no autobuild step is required between them.
+  codeql-sast:
+    name: SAST (CodeQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['javascript-typescript']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # security-extended = default suite + extra security queries.
+          queries: security-extended
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:${{ matrix.language }}'

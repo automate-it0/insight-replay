@@ -1,0 +1,346 @@
+// Insight Replay — analytics schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id         String   @id @default(cuid())
+  name       String
+  siteUrl    String
+  trackingId String   @unique @default(cuid())
+  createdAt  DateTime @default(now())
+  sessions   Session[]
+  funnels    Funnel[]
+  goals      Goal[]
+  segments   Segment[]
+  alerts     Alert[]
+  dashboards Dashboard[]
+  experiments Experiment[]
+  annotations Annotation[]
+  apiKeys    ApiKey[]
+  visitorTombstones VisitorTombstone[]
+}
+
+model Session {
+  id             String   @id @default(cuid())
+  projectId      String
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  visitorId      String
+  userAgent      String   @default("")
+  ip             String   @default("")
+  country        String   @default("Unknown")
+  city           String   @default("Unknown")
+  device         String   @default("desktop")
+  browser        String   @default("Chrome")
+  os             String   @default("Windows")
+  screenWidth    Int      @default(1440)
+  screenHeight   Int      @default(900)
+  language       String   @default("en")
+  referrer       String   @default("")
+  utmSource      String   @default("")
+  utmMedium      String   @default("")
+  utmCampaign    String   @default("")
+  entryUrl       String   @default("/")
+  exitUrl        String   @default("/")
+  isNewVisitor   Boolean  @default(true)
+  startedAt      DateTime @default(now())
+  lastActiveAt   DateTime @default(now())
+  duration       Int      @default(0)
+  isActive       Boolean  @default(false)
+  totalClicks    Int      @default(0)
+  totalScrolls   Int      @default(0)
+  pageViewsCount Int      @default(0)
+  hasRageClick   Boolean  @default(false)
+  hasDeadClick   Boolean  @default(false)
+  hasError       Boolean  @default(false)
+  convertedGoal  String   @default("")
+  experimentId   String   @default("")
+  variant        String   @default("")
+  isAnonymous    Boolean  @default(true)
+  events         Event[]
+  insights       Insight[]
+  errors         ErrorEvent[]
+  notes          Note[]
+  tags           Tag[]
+  bookmarks      Bookmark[]
+
+  @@index([projectId, startedAt])
+  @@index([projectId, isActive])
+  @@index([isActive])
+  @@index([visitorId, projectId])
+  @@index([projectId, isNewVisitor])
+  @@index([projectId, experimentId, variant])
+}
+
+model Event {
+  id             String   @id @default(cuid())
+  sessionId      String
+  session        Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  type           String
+  timestamp      DateTime @default(now())
+  t              Int      @default(0)
+  data           String   @default("{}")
+  pageUrl        String   @default("/")
+  viewportWidth  Int      @default(1440)
+  viewportHeight Int      @default(900)
+  scrollX        Int      @default(0)
+  scrollY        Int      @default(0)
+  x              Int      @default(0)
+  y              Int      @default(0)
+
+  @@index([sessionId, t])
+  @@index([type])
+}
+
+model Insight {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  projectId String
+  type      String
+  severity  String   @default("medium")
+  timestamp DateTime @default(now())
+  data      String   @default("{}")
+
+  @@index([projectId, type])
+  @@index([sessionId])
+}
+
+model ErrorEvent {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  projectId String
+  message   String
+  stack     String   @default("")
+  type      String   @default("js")
+  url       String   @default("/")
+  line      Int      @default(0)
+  timestamp DateTime @default(now())
+  t         Int      @default(0)
+
+  @@index([projectId, timestamp])
+  @@index([sessionId])
+}
+
+model Funnel {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  steps     String   @default("[]") // JSON: [{url, name}]
+  createdAt DateTime @default(now())
+
+  // Lists/fetches by projectId (e.g. GET /api/projects/[id]/funnels) hit this
+  // index instead of scanning every Funnel row. Without it, every per-project
+  // query is a full table scan filtered by projectId at the SQLite layer.
+  @@index([projectId])
+}
+
+model Goal {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  type      String   @default("url") // url | event
+  match     String   @default("contains")
+  url       String   @default("")
+  eventName String   @default("")
+  value     Float    @default(0)
+  createdAt DateTime @default(now())
+
+  // Per-project goal listings (GET /api/projects/[id]/goals) look up by
+  // projectId — index prevents full scan of all goals across all projects.
+  @@index([projectId])
+}
+
+model Segment {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  filters   String   @default("{}") // JSON
+  createdAt DateTime @default(now())
+
+  // Per-project segment listings (GET /api/projects/[id]/segments) look up
+  // by projectId — index prevents full scan of all segments across projects.
+  @@index([projectId])
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  text      String
+  t         Int      @default(0)
+  author    String   @default("analyst")
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  label     String
+  color     String   @default("primary")
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+  @@unique([sessionId, label])
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  projectId String
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+  @@unique([sessionId])
+}
+
+model Alert {
+  id           String   @id @default(cuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name         String
+  metric       String   @default("sessions") // sessions | rageClicks | errors | conversions | bounceRate | avgDuration
+  condition    String   @default("gt") // gt | lt | drops | spikes
+  threshold    Float    @default(0)
+  windowMin    Int      @default(60) // evaluation window in minutes
+  channel      String   @default("inapp") // inapp | webhook
+  webhookUrl   String   @default("")
+  enabled      Boolean  @default(true)
+  lastTriggered DateTime?
+  createdAt    DateTime @default(now())
+  history      AlertHistory[]
+
+  @@index([projectId, enabled])
+}
+
+model AlertHistory {
+  id         String   @id @default(cuid())
+  alertId    String
+  alert      Alert    @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  projectId  String
+  triggeredAt DateTime @default(now())
+  value      Float    @default(0)
+  message    String   @default("")
+  acknowledged Boolean @default(false)
+
+  @@index([projectId, triggeredAt])
+  @@index([alertId, triggeredAt])
+}
+
+model Dashboard {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  layout    String   @default("[]") // JSON array of widgets
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+}
+
+model Experiment {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name       String
+  hypothesis String   @default("")
+  variants   String   @default("[]") // JSON: [{name, weight, description}]
+  goalName   String   @default("")
+  status     String   @default("running") // draft | running | completed
+  startDate  DateTime @default(now())
+  endDate    DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([projectId, status])
+}
+
+model Annotation {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  date      DateTime
+  text      String
+  author    String   @default("analyst")
+  color     String   @default("primary")
+  createdAt DateTime @default(now())
+
+  @@index([projectId, date])
+}
+
+model ApiKey {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  key       String   @unique @default(cuid())
+  createdAt DateTime @default(now())
+  lastUsed  DateTime?
+
+  // Prevents two API keys with the same name within the same project. Two
+  // concurrent POST /api/projects/[id]/apikeys requests with the same `name`
+  // would otherwise each create a key with that name; this constraint makes
+  // the second one fail at the DB level (P2002) so the route handler can
+  // return a clean 409 instead of leaving duplicate keys behind.
+  @@unique([projectId, name])
+  @@index([projectId])
+}
+
+/// GDPR right-to-erasure tombstone. Created when an operator invokes
+/// DELETE /api/projects/[id]/visitors/[vid]/erase. Its existence prevents the
+/// tracking pipeline (src/lib/track.ts `ingest()`) from creating NEW sessions
+/// for the erased visitor — without it, a session arriving microseconds after
+/// the erase would survive the deleteMany and the visitor's data would
+/// "reappear", violating GDPR Article 17. Two concurrent erase requests for
+/// the same visitor are de-duplicated by the @@unique constraint (the second
+/// one's upsert becomes an update — a no-op).
+model VisitorTombstone {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  visitorId  String
+  erasedAt   DateTime @default(now())
+
+  @@unique([projectId, visitorId])
+  @@index([projectId])
+  @@index([visitorId])
+}
+
+/// Authenticated dashboard user. Sessions are stored in a signed cookie
+/// (see src/lib/session.ts) — this model only holds the credentials and
+/// profile. The first user is created via /api/auth/setup (one-time
+/// bootstrap, refused once any user exists); subsequent logins verify the
+/// password against `passwordHash` (SHA-256 + per-user salt, constant-time
+/// compare).
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  role         String   @default("admin")
+  createdAt    DateTime @default(now())
+
+  /// DB-level mutex that makes the one-time first-admin bootstrap race-safe.
+  /// Set to a constant non-null value ("TAKEN") ONLY by the first /api/auth/setup
+  /// request that successfully creates an admin. The `@unique` constraint then
+  /// REJECTS any concurrent setup that tries to insert a second admin with the
+  /// same value (Prisma P2002), even if both requests passed the `count() === 0`
+  /// check before either had committed. NULL on subsequent non-admin users
+  /// (added by a future /admin/users workflow) so multiple rows can coexist —
+  /// SQLite treats NULLs as distinct in a UNIQUE index.
+  bootstrapLock String? @unique
+}

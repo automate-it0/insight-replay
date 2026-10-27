@@ -1,0 +1,42 @@
+# Greetings — sends a welcome message on first-time issue/PR authors.
+
+name: Greetings
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  greet:
+    name: Welcome first-timer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/first-interaction@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          issue-message: |
+            👋 Thanks for opening your first issue on Insight Replay!
+            A maintainer will triage this within 48 hours.
+
+            While you wait:
+            - 📖 Skim the [USAGE.md](https://github.com/automate-it0/insight-replay/blob/main/USAGE.md) — most "how do I…" questions are answered there.
+            - 🐛 If this is a bug, please attach the Insight Replay version (`bun --version` and `cat package.json | grep version`), your runtime, and OS.
+            - ⭐ If this is your first time here, consider starring the repo so other people can find it.
+
+            💛 We're glad you're here.
+          pr-message: |
+            👋 Thanks for opening your first PR on Insight Replay!
+            A maintainer will review within 48 hours.
+
+            While you wait:
+            - ✅ The [Quality Gate](./.github/workflows/quality-gate.yml) must pass — no `console.log` in `src/`, PR ≤ 400 lines, TODO/FIXME need issue links.
+            - 📝 If you haven't already, update [CHANGELOG.md](https://github.com/automate-it0/insight-replay/blob/main/CHANGELOG.md) under `[Unreleased]`.
+            - 🧪 CI runs lint + type-check + 138 tests + build, all in parallel. They must be green.
+
+            💛 We appreciate the time you're spending to improve the project.

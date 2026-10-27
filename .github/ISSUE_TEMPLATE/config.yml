@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Ask a question
+    url: https://github.com/automate-it0/insight-replay/discussions/new?category=q-a
+    about: Have a "how do I…" question? Ask it in Discussions, not in Issues.
+  - name: 💡 Share an idea
+    url: https://github.com/automate-it0/insight-replay/discussions/new?category=ideas
+    about: Got an idea that's not yet a concrete feature request? Discuss it first.
+  - name: 📖 Read the docs
+    url: https://github.com/automate-it0/insight-replay/blob/main/USAGE.md
+    about: Most "how do I…" questions are answered in USAGE.md.
+  - name: 🔒 Report a sensitive security vuln
+    url: https://github.com/automate-it0/insight-replay/blob/main/SECURITY.md
+    about: Sensitive security reports must be made privately — see the policy.

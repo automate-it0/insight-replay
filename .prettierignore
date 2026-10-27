@@ -1,0 +1,7 @@
+# Prettier ignore — these paths are skipped by `prettier --write .` and
+# by editor format-on-save. Anything not listed here is formatted by
+# the rules in .prettierrc.json.
+node_modules
+.next
+dist
+coverage
