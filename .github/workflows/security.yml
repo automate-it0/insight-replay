@@ -67,7 +67,7 @@ jobs:
       - name: TruffleHog OSS
         # Pinned to a specific release tag — was @main (supply-chain risk:
         # any malicious commit on the upstream default branch would run in CI).
-        uses: trufflesecurity/trufflehog@v3.88.5
+        uses: trufflesecurity/trufflehog@v3.99.7
         with:
           # Scan the working tree + all branches in this checkout.
           path: .
