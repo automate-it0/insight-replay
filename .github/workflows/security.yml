@@ -85,25 +85,36 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # The `returntocorp/semgrep-action@v1` wrapper pins a 2022-era Docker
+      # image that no longer writes a SARIF file, so the upload step failed
+      # with "Path does not exist: semgrep.sarif". Run the official
+      # `semgrep/semgrep` image directly instead — it writes the SARIF into
+      # the mounted workspace, and the output path is explicit.
       - name: Semgrep scan
-        uses: returntocorp/semgrep-action@v1
-        with:
-          # Curated rulesets covering the project's languages (TS/JS) and
-          # frameworks (Next.js, React) plus generic OWASP Top-10 checks.
-          config: >-
-            p/typescript
-            p/javascript
-            p/react
-            p/nextjs
-            p/owasp-top-ten
-          # Generate a SARIF file so findings appear in GitHub code scanning.
-          generate-sarif: true
+        run: |
+          docker run --rm \
+            -v "${PWD}:/src" \
+            semgrep/semgrep:latest \
+            semgrep scan \
+              --config p/typescript \
+              --config p/javascript \
+              --config p/react \
+              --config p/nextjs \
+              --config p/owasp-top-ten \
+              --sarif \
+              --output /src/semgrep.sarif \
+              --metrics=off \
+              --exclude node_modules \
+              --exclude .next
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
       - name: Upload Semgrep SARIF
         if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: semgrep.sarif
+          category: semgrep
 
   # --- Job 4: SAST (CodeQL) -----------------------------------------------
   # GitHub-native SAST. `init` builds the language database, `analyze` runs
