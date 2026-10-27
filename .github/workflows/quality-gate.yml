@@ -1,0 +1,68 @@
+# Quality Gate — runs on PRs to main, blocks merge on console.log in src/.
+# This is the actual merge gate, not CI.
+
+name: Quality Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "mini-services/**"
+      - "tests/**"
+
+permissions:
+  contents: read
+
+jobs:
+  no-console-log:
+    name: No console.log in src/
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for console.log / console.debug in src/ and mini-services/
+        run: |
+          set -euo pipefail
+          if rg "console\.(log|debug)" src/ mini-services/; then
+            echo "::error::Found console.log or console.debug in src/ or mini-services/. Remove before merge."
+            exit 1
+          fi
+          echo "✅ No console.log / console.debug found."
+
+  no-todo-in-prod:
+    name: No TODO/FIXME without issue link
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check TODO/FIXME have an issue link
+        run: |
+          set -euo pipefail
+          # TODO without #issue number is forbidden in src/
+          if rg "TODO(?!\(#\d+\))" src/; then
+            echo "::error::Found TODO without an issue link. Use TODO(#123) format."
+            exit 1
+          fi
+          if rg "FIXME(?!\(#\d+\))" src/; then
+            echo "::error::Found FIXME without an issue link. Use FIXME(#123) format."
+            exit 1
+          fi
+          echo "✅ All TODO/FIXME have issue links."
+
+  pr-size:
+    name: PR size ≤ 400 lines
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check PR size
+        run: |
+          set -euo pipefail
+          # Get the diff against the base branch
+          git fetch origin "$GITHUB_BASE_REF"
+          LINES=$(git diff "origin/$GITHUB_BASE_REF...HEAD" --stat | tail -n1 | rg -o '\d+(?=\+)' || echo "0")
+          if [ "$LINES" -gt 400 ]; then
+            echo "::error::PR is $LINES insertions. Limit is 400. Split into smaller PRs."
+            exit 1
+          fi
+          echo "✅ PR is $LINES insertions (limit: 400)."

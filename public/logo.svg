@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Insight Replay logo">
+  <defs>
+    <linearGradient id="ir-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="ir-grad-2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Outer rounded square -->
+  <rect x="8" y="8" width="240" height="240" rx="48" ry="48" fill="url(#ir-grad)"/>
+
+  <!-- Eye / insight ring -->
+  <circle cx="128" cy="128" r="76" fill="none" stroke="#ffffff" stroke-width="8" opacity="0.95"/>
+  <ellipse cx="128" cy="128" rx="76" ry="32" fill="none" stroke="#ffffff" stroke-width="4" opacity="0.55"/>
+
+  <!-- Pupil = play triangle (replay) -->
+  <path d="M 110 92 L 162 128 L 110 164 Z" fill="#ffffff"/>
+
+  <!-- Replay orbit arrows (two arcs on the right side) -->
+  <path d="M 188 96 A 64 64 0 0 1 188 160" fill="none" stroke="url(#ir-grad-2)" stroke-width="10" stroke-linecap="round"/>
+  <path d="M 200 86 L 188 96 L 184 80" fill="none" stroke="url(#ir-grad-2)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,99 @@
+# Labeler rules — used by .github/workflows/labeler.yml
+# Auto-assigns labels to PRs based on the files they touch.
+
+# Dashboard UI
+dashboard-ui:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/app/**/page.tsx"
+          - "src/app/**/page.ts"
+          - "src/components/app/**"
+          - "src/app/globals.css"
+
+# UI primitives (shadcn/ui)
+ui-primitives:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/components/ui/**"
+
+# API / backend
+backend-api:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/app/api/**"
+          - "mini-services/**"
+
+# Tracking SDK
+sdk:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/app/api/track/**"
+          - "src/lib/track.ts"
+          - "public/sdk/**"
+
+# AI features
+ai-features:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/lib/ai/**"
+          - "src/app/api/projects/[id]/ai/**"
+          - "src/app/api/projects/[id]/ai-search/**"
+          - "src/components/app/ai-*"
+
+# Security
+security:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/lib/auth.ts"
+          - "src/lib/csrf.ts"
+          - "src/lib/pow.ts"
+          - "src/lib/rate-limit.ts"
+          - "src/lib/ssrf-guard.ts"
+          - "src/lib/sanitize*.ts"
+          - "src/lib/ip-ban.ts"
+          - "src/lib/login-lockout.ts"
+          - "src/middleware.ts"
+          - "tests/security/**"
+
+# Database
+database:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "prisma/**"
+          - "src/lib/db.ts"
+          - "src/lib/db-encryption.ts"
+
+# Documentation
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.md"
+          - "docs/**"
+          - ".github/**/*.md"
+
+# CI / build / config
+ci-build:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/workflows/**"
+          - "Dockerfile"
+          - "Caddyfile"
+          - "package.json"
+          - "tsconfig.json"
+          - "next.config.ts"
+          - "eslint.config.mjs"
+          - ".prettierrc.json"
+
+# Tests
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "tests/**"
+          - "playwright.config.ts"
+
+# Dependencies
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "package.json"
+          - "bun.lock"

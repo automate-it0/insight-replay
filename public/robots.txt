@@ -1,0 +1,14 @@
+# robots.txt — Insight Replay
+#
+# By default, allow all crawlers. The dashboard is private (login-walled) so
+# there's nothing sensitive to disallow here. Public marketing pages (if any
+# are added later) should be linked from your sitemap instead.
+
+User-agent: *
+Allow: /
+
+# Crawl-delay: keep the dashboard API quiet from aggressive crawlers.
+Crawl-delay: 10
+
+# Don't index the API or the tracking endpoints (they're not for browsers).
+Disallow: /api/

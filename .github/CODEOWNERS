@@ -1,0 +1,36 @@
+# Code owners — auto-requested reviewers by file path.
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Maintainer: Ziad Mohamed Kishk  →  GitHub: @automate-it0
+# All sensitive + security-critical paths default to @automate-it0 for review.
+
+# Default owner — requests review on every PR.
+*           @automate-it0
+
+# Security-critical paths — always reviewed by the maintainer.
+/src/lib/auth.ts            @automate-it0
+/src/lib/csrf.ts            @automate-it0
+/src/lib/pow.ts             @automate-it0
+/src/lib/rate-limit.ts      @automate-it0
+/src/lib/ssrf-guard.ts      @automate-it0
+/src/middleware.ts          @automate-it0
+/prisma/schema.prisma       @automate-it0
+
+# Database migrations — schema changes need explicit review.
+/prisma/migrations/        @automate-it0
+
+# CI / build / release config — needs maintainer sign-off.
+/.github/workflows/        @automate-it0
+/Dockerfile                @automate-it0
+/Caddyfile                 @automate-it0
+/next.config.ts            @automate-it0
+/package.json              @automate-it0
+
+# Public API contract — breaking changes need explicit review.
+/src/app/api/              @automate-it0
+/docs/api-reference.md     @automate-it0
+
+# Documentation — maintainer reviews docs for tone + accuracy.
+/README.md                 @automate-it0
+/USAGE.md                  @automate-it0
+/CHANGELOG.md              @automate-it0

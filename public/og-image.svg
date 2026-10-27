@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-label="Insight Replay — self-hosted Microsoft Clarity">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="50%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="brand-2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Subtle grid pattern -->
+  <g stroke="#1e293b" stroke-width="1" opacity="0.6">
+    <line x1="0" y1="100" x2="1200" y2="100"/>
+    <line x1="0" y1="200" x2="1200" y2="200"/>
+    <line x1="0" y1="300" x2="1200" y2="300"/>
+    <line x1="0" y1="400" x2="1200" y2="400"/>
+    <line x1="0" y1="500" x2="1200" y2="500"/>
+    <line x1="100" y1="0" x2="100" y2="630"/>
+    <line x1="300" y1="0" x2="300" y2="630"/>
+    <line x1="500" y1="0" x2="500" y2="630"/>
+    <line x1="700" y1="0" x2="700" y2="630"/>
+    <line x1="900" y1="0" x2="900" y2="630"/>
+    <line x1="1100" y1="0" x2="1100" y2="630"/>
+  </g>
+
+  <!-- Logo (eye + play triangle + replay orbit) -->
+  <g transform="translate(110, 215)">
+    <rect x="0" y="0" width="200" height="200" rx="42" fill="url(#brand)"/>
+    <circle cx="100" cy="100" r="63" fill="none" stroke="#ffffff" stroke-width="7" opacity="0.95"/>
+    <ellipse cx="100" cy="100" rx="63" ry="27" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.55"/>
+    <path d="M 85 70 L 130 100 L 85 130 Z" fill="#ffffff"/>
+    <path d="M 156 80 A 53 53 0 0 1 156 120" fill="none" stroke="url(#brand-2)" stroke-width="9" stroke-linecap="round"/>
+    <path d="M 166 70 L 156 80 L 153 66" fill="none" stroke="url(#brand-2)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Headline -->
+  <text x="350" y="245" font-family="Inter, system-ui, sans-serif" font-size="56" font-weight="800" fill="#ffffff">Insight Replay</text>
+
+  <!-- Sub-headline -->
+  <text x="350" y="295" font-family="Inter, system-ui, sans-serif" font-size="26" font-weight="500" fill="#94a3b8">Self-hosted session replay, heatmaps &amp; live analytics</text>
+  <text x="350" y="335" font-family="Inter, system-ui, sans-serif" font-size="26" font-weight="500" fill="#94a3b8">— a Microsoft Clarity clone you actually own.</text>
+
+  <!-- Badges -->
+  <g transform="translate(350, 380)" font-family="Inter, system-ui, sans-serif" font-size="22" font-weight="600">
+    <rect x="0" y="0" width="160" height="44" rx="10" fill="#1e293b" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="80" y="29" text-anchor="middle" fill="#a5b4fc">MIT License</text>
+
+    <rect x="180" y="0" width="190" height="44" rx="10" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+    <text x="275" y="29" text-anchor="middle" fill="#67e8f9">Next.js 16 · Bun</text>
+
+    <rect x="390" y="0" width="190" height="44" rx="10" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+    <text x="485" y="29" text-anchor="middle" fill="#6ee7b7">Self-hosted</text>
+  </g>
+
+  <!-- URL footer -->
+  <text x="350" y="490" font-family="JetBrains Mono, monospace" font-size="20" font-weight="400" fill="#475569">github.com/automate-it0/insight-replay</text>
+</svg>

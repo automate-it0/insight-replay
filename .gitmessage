@@ -1,0 +1,97 @@
+# Commit message template for Insight Replay.
+# Conventional Commits 1.0.0 — https://www.conventionalcommits.org/
+#
+# Format:
+#   <type>(<scope>): <subject>
+#
+#   <body>
+#
+#   <footer>
+#
+# Edit the lines below the `# ---` cut. Everything above is documentation.
+# Lines starting with `#` are stripped by git before the message is saved.
+#
+# Types (lowercase, pick exactly one):
+#   feat     A new feature (user-facing).
+#   fix      A bug fix (user-facing).
+#   perf     A code change that improves performance.
+#   refactor A code change that neither fixes a bug nor adds a feature.
+#   style    Formatting, whitespace, semicolons — no production code change.
+#   test     Adding or correcting tests.
+#   docs     Documentation only changes.
+#   chore    Build, deps, config, tooling — no production code change.
+#   ci       Changes to CI pipelines / workflows.
+#   security Hardening that closes a security gap (use when fix(security) is too vague).
+#
+# Scopes (optional but encouraged — pick the area most affected):
+#   api             API route handlers under src/app/api/**.
+#   ui              React components under src/components/**.
+#   db              Prisma schema, migrations, db lib.
+#   track           Tracking SDK + ingest (/api/track/**, src/lib/track.ts).
+#   live            Socket.io live service (mini-services/live-service).
+#   ai              LLM-powered routes + helpers (src/lib/ai*, /api/**/ai/**).
+#   security        Auth, rate-limit, CORS, sanitization, audit, headers.
+#   observability   Logs, metrics, health, request IDs, middleware.
+#   test            Test files under tests/**.
+#   docs            Markdown under docs/**, AGENTS.md, README.
+#   ci              .github/workflows/**, scripts/check-quality.sh.
+#
+# Subject rules:
+#   - Imperative mood: "add", "fix", "refactor" — not "added" / "fixes".
+#   - Lowercase first letter, no trailing period.
+#   - <= 72 characters.
+#   - What changed, not why (the why goes in the body).
+#
+# Body rules:
+#   - Wrap at 72 columns.
+#   - Explain WHAT and WHY (not HOW — the diff already shows how).
+#   - One blank line between subject and body, and between body and footer.
+#   - Bullet points with `-` are fine; keep them tight.
+#
+# Footer rules:
+#   - BREAKING CHANGE: <description> on its own line → bumps MAJOR.
+#   - `!` after the type/scope also signals a breaking change
+#     (e.g. `feat(api)!: drop v1 response envelope`).
+#   - Reference issues / PRs / ADRs:
+#       Closes #123
+#       Refs #456
+#       See docs/adr/0007-*.md
+#   - Co-authored-by trailers go at the very bottom.
+#
+# --- cut here ---
+
+# <type>(<scope>): <subject>
+#
+# <body — what + why, wrapped at 72 cols>
+#
+# <footer — BREAKING CHANGE: / Closes # / Refs # / See docs/adr/>
+
+# ----------------------------------------------------------------------------
+# Example 1 — feature
+# feat(ui): add retention cohort matrix on Retention tab
+#
+# Surfaces week-over-week retention so PMs can spot cohort decay without
+# exporting to a spreadsheet. Reuses the existing /api/projects/[id]/retention
+# endpoint; cohort cells are keyboard-navigable (aria-label per cell).
+#
+# Closes #142
+# See docs/adr/0005-in-memory-cache-for-stats.md
+#
+# ----------------------------------------------------------------------------
+# Example 2 — fix with breaking flag
+# fix(api)!: return 404 (not 200 + {error}) when project is missing
+#
+# The previous 200+error envelope hid missing-project cases from clients that
+# only checked status codes, causing silent UI fallbacks. Standardized on the
+# api-response.ts envelope; clients must now branch on status, not body.error.
+#
+# BREAKING CHANGE: /api/projects/[id]/* now returns 404 for unknown ids
+# Refs #98
+#
+# ----------------------------------------------------------------------------
+# Example 3 — chore
+# chore(ci): cache bun install in ci.yml on bun.lock hash
+#
+# Cuts ~40s off cold CI runs by reusing the bun install cache across runs.
+# Falls back to a partial-key restore so a bumped dep still hits the cache.
+# ----------------------------------------------------------------------------

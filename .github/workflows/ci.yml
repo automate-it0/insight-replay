@@ -1,0 +1,89 @@
+# CI — runs on every push + PR to main.
+# Lint + type-check + test + build, in parallel jobs with concurrency cancellation.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.0
+      - name: Install deps
+        run: bun install --frozen-lockfile
+      - name: Run ESLint
+        run: bun run lint
+
+  type-check:
+    name: Type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.0
+      - name: Install deps
+        run: bun install --frozen-lockfile
+      - name: Run tsc --noEmit
+        run: bun run type-check
+
+  test:
+    name: Test (138 unit + contract)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.0
+      - name: Install deps
+        run: bun install --frozen-lockfile
+      - name: Generate Prisma client
+        run: bun run db:generate
+      - name: Run tests
+        run: bun test tests/
+
+  build:
+    name: Build standalone
+    runs-on: ubuntu-latest
+    needs: [lint, type-check, test]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.0
+      - name: Install deps
+        run: bun install --frozen-lockfile
+      - name: Build
+        run: bun run build
+        env:
+          DATABASE_URL: "file:./db/ci.db"
+          SESSION_SECRET: "0000000000000000000000000000000000000000000000000000000000000000"
+          ADMIN_TOKEN: "0000000000000000000000000000000000000000000000000000000000000000"
+          ALLOWED_ORIGINS: "http://localhost:3000"
+          NODE_ENV: "production"
+      - name: Upload standalone artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-standalone
+          path: .next/standalone/
+          retention-days: 7
