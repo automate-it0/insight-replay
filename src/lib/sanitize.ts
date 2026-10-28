@@ -124,19 +124,23 @@ function sanitizeValue(value: unknown, depth: number): unknown {
   // string keys via Object.entries; non-serializable wrappers collapse to {}.
   if (depth >= MAX_DEPTH) return {};
 
-  const out: Record<string, unknown> = {};
   const obj = value as Record<string, unknown>;
+  // Accumulate into a Map instead of writing properties onto an object
+  // literal. Map keys are dictionary DATA, not property names — there is no
+  // prototype chain and no inherited setter to abuse, so an attacker-chosen
+  // key simply cannot inject anything (CodeQL
+  // js/remote-property-injection: the property-write sink is gone by
+  // construction). Object.fromEntries then materializes the result with
+  // CreateDataProperty semantics — own data properties, no setters.
+  const outMap = new Map<string, unknown>();
   for (const [rawKey, rawVal] of Object.entries(obj)) {
     const safeKey = sanitizeString(rawKey, 100);
-    // Prototype-pollution guard (CodeQL js/remote-property-injection).
-    // The magic key names are compared as LITERAL strings — not via a
-    // denylist regex — because literal comparison is a statically
-    // verifiable guard: an analyzer (and a human reviewer) can prove the
-    // tainted key can never equal a magic name at the `out[safeKey]`
-    // assignment below. The check runs on the SANITIZED key, after
-    // control-character stripping, so a payload like `__pro\u0000to__`
-    // (which sanitizes to the literal `__proto__`) is also rejected — the
-    // old pre-sanitization regex check would have missed it.
+    // Prototype-pollution guard, kept as defense-in-depth on top of the
+    // Map: rejects the three magic names outright so they never even
+    // become own data properties of the returned object (a literal
+    // "__proto__" own property is harmless, but storing one would confuse
+    // downstream code and linters). Compared as literal strings so the
+    // guard is statically verifiable.
     if (
       safeKey === "__proto__" ||
       safeKey === "constructor" ||
@@ -147,9 +151,9 @@ function sanitizeValue(value: unknown, depth: number): unknown {
     if (!safeKey) continue;
     const safeVal = sanitizeValue(rawVal, depth + 1);
     if (safeVal === undefined) continue;
-    out[safeKey] = safeVal;
+    outMap.set(safeKey, safeVal);
   }
-  return out;
+  return Object.fromEntries(outMap) as Record<string, unknown>;
 }
 
 /** Shape of the payload accepted by the /api/track/events ingest endpoint. */

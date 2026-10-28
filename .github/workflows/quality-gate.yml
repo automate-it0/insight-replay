@@ -31,17 +31,30 @@ jobs:
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         with:
           script: |
-            const conclusion = context.payload.workflow_run.conclusion;
-            const headSha = context.payload.workflow_run.head_sha;
-            const runHtmlUrl = context.payload.workflow_run.html_url;
-            if (conclusion !== 'success') {
+            const run = context.payload.workflow_run;
+            const headSha = run.head_sha;
+            const runHtmlUrl = run.html_url;
+            // Security (Semgrep workflow-run-target-code-checkout): a
+            // workflow_run event can be triggered from a fork whose
+            // head_sha is attacker-controlled code. Before this job
+            // checks out and inspects that commit, verify the run
+            // originated from THIS repository — never gate on (or check
+            // out) foreign code.
+            const headRepo = run.head_repository.full_name;
+            const thisRepo = context.payload.repository.full_name;
+            if (headRepo !== thisRepo) {
               core.setFailed(
-                `CI workflow on ${headSha} did not succeed (conclusion: ${conclusion}).` +
+                `Refusing to gate a workflow_run from another repository ` +
+                `(head repo: ${headRepo}, expected ${thisRepo}).`
+              );
+            } else if (run.conclusion !== 'success') {
+              core.setFailed(
+                `CI workflow on ${headSha} did not succeed (conclusion: ${run.conclusion}).` +
                 ` See: ${runHtmlUrl}` +
                 ` — Quality Gate cannot pass until lint, type-check, and test are all green.`
               );
             } else {
-              core.info(`CI workflow on ${headSha} succeeded. Proceeding to gate checks.`);
+              core.info(`CI workflow on ${headSha} from ${headRepo} succeeded. Proceeding to gate checks.`);
             }
 
       - name: Checkout PR head
