@@ -41,6 +41,14 @@ const ALGORITHM = "aes-256-gcm"
 const SALT = "insight-replay-salt"
 const VERSION_PREFIX = "enc:"
 const MIN_SECRET_LENGTH = 16
+// GCM auth-tag size in bytes. Passed explicitly as `authTagLength` to
+// every createCipheriv / createDecipheriv call below: pinning it on the
+// decipher makes Node REJECT tags of any other length, so a truncated
+// tag can never be verified (GCM forgery / CWE-310 hardening). 16 is
+// Node's default and the size getAuthTag() emits, so this changes no
+// stored format — it just turns an implicit default into a checked
+// invariant.
+const AUTH_TAG_LENGTH = 16
 
 // Derive a 32-byte key from the env var (or a dev-only fallback).
 // scrypt is intentionally slow — deriving once at module load is fine;
@@ -107,7 +115,10 @@ function resolveEncryptionKey(): Buffer {
  */
 export function encrypt(plaintext: string): string {
   const iv = randomBytes(12)
-  const cipher = createCipheriv(ALGORITHM, ENCRYPTION_KEY, iv)
+  // authTagLength pinned for symmetry with decrypt(): the 16-byte tag
+  // size becomes an explicit invariant rather than Node's default. No
+  // change to the "enc:<iv>:<authTag>:<ciphertext>" output format.
+  const cipher = createCipheriv(ALGORITHM, ENCRYPTION_KEY, iv, { authTagLength: AUTH_TAG_LENGTH })
   const encrypted = Buffer.concat([
     cipher.update(plaintext, "utf8"),
     cipher.final(),
@@ -128,7 +139,13 @@ export function decrypt(ciphertext: string): string | null {
     const iv = Buffer.from(parts[1], "hex")
     const authTag = Buffer.from(parts[2], "hex")
     const encrypted = Buffer.from(parts[3], "hex")
-    const decipher = createDecipheriv(ALGORITHM, ENCRYPTION_KEY, iv)
+    // authTagLength pinned: the decipher refuses auth tags of any other
+    // length, so a truncated tag is rejected at setAuthTag() instead of
+    // being verified as-is (GCM forgery / CWE-310). 16 bytes matches
+    // what encrypt() writes, so well-formed values decrypt as before.
+    const decipher = createDecipheriv(ALGORITHM, ENCRYPTION_KEY, iv, {
+      authTagLength: AUTH_TAG_LENGTH,
+    })
     decipher.setAuthTag(authTag)
     const decrypted = Buffer.concat([
       decipher.update(encrypted),

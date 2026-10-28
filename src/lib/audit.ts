@@ -1,6 +1,6 @@
 import { mkdir, appendFile, readFile, stat } from "fs/promises";
 import { dirname, join } from "path";
-import { createHash } from "crypto";
+import { createHash, createHmac, randomBytes, scryptSync } from "crypto";
 
 /**
  * File-based audit logging for security monitoring & compliance.
@@ -13,13 +13,27 @@ import { createHash } from "crypto";
  *
  * --- Tamper-evident hash chain (10x#4: Audit hash chain) ---
  * Each chained entry carries `__prev_hash` (the previous chained entry's
- * `__hash`, or `"genesis"` for the first) and `__hash`
- * (SHA-256(`__prev_hash` + JSON.stringify({action, projectId, actor, ip,
- * timestamp}))). The hash intentionally covers exactly those five fields
- * — NOT the hash fields themselves — so an attacker editing any of those
+ * `__hash`, or `"genesis"` for the first) and `__hash`.
+ *
+ * v1 (current, CodeQL js/insufficient-password-hash fix): `__hash` =
+ * `"hmac:v1:" + HMAC-SHA256(serverSecret, __prev_hash + JSON.stringify(
+ * {action, projectId, actor, ip, timestamp}))`. Keying the chain with a
+ * server-side secret upgrades tamper-EVIDENCE to tamper-RESISTANCE: with
+ * the legacy plain SHA-256, an attacker who can write the log file could
+ * rewrite history AND recompute a fully valid chain offline; with the
+ * keyed HMAC, forging a valid chain additionally requires the server
+ * secret. The `hmac:v1:` version prefix lets the verifiers dispatch per
+ * entry, so chains written before the upgrade keep verifying (backward
+ * compatibility — existing log files must not report spurious tampering
+ * after this deploy).
+ *
+ * Legacy (pre-v1): `__hash` = plain SHA-256 of the same payload (no
+ * prefix). The hash intentionally covers exactly those five fields — NOT
+ * the hash fields themselves — so an attacker editing any of those
  * fields retroactively changes the recomputed hash and breaks the chain.
  * `verifyAuditChain(entries)` walks the entries and flags any whose stored
- * `__hash` does not match the recomputed value with `__tampered: true`.
+ * `__hash` does not match the recomputed value (algorithm selected by the
+ * stored value's version prefix) with `__tampered: true`.
  * The audit read endpoints (`/api/audit`, `/api/projects/[id]/audit`)
  * call `verifyAuditChain()` on the results before returning so consumers
  * see tamper flags on every response.
@@ -48,8 +62,11 @@ export interface AuditEntry {
    */
   __prev_hash?: string;
   /**
-   * `__hash` — SHA-256 of `__prev_hash + JSON.stringify({action, projectId,
-   * actor, ip, timestamp})`. Absent on pre-chain (legacy) entries.
+   * `__hash` — `"hmac:v1:" +` HMAC-SHA256(serverSecret, `__prev_hash` +
+   * JSON.stringify({action, projectId, actor, ip, timestamp}))` for
+   * entries written since the keyed-hash upgrade; plain SHA-256 of the same
+   * payload for older entries (verifiers dispatch on the `hmac:v1:`
+   * prefix). Absent on pre-chain (legacy) entries.
    */
   __hash?: string;
 }
@@ -100,9 +117,79 @@ export const AUDIT_ACTIONS = {
   SESSION_TAGGED: "session_tagged",
 } as const;
 
-/** SHA-256 hex digest of a UTF-8 string. */
-function sha256(s: string): string {
+// ─── Chain-hash primitives (v1 keyed + legacy) ───────────────────────────
+//
+// CodeQL `js/insufficient-password-hash` flagged the plain-SHA-256 chain
+// hash. v1 chains are now keyed with HMAC-SHA256 under a server-side
+// secret (see the tamper-evident-chain block comment at the top of this
+// file); the legacy plain digest is retained VERIFICATION-ONLY so
+// pre-upgrade chains keep verifying (backward compatibility — existing
+// log files must not report spurious tampering after this deploy).
+//
+// Secret resolution follows the fail-closed pattern of src/lib/session.ts
+// / db-encryption.ts: prefer a dedicated `AUDIT_HMAC_SECRET` (rotate the
+// audit-chain key without touching session cookies or DB encryption),
+// fall back to `SESSION_SECRET` (mandatory in production anyway — startup.ts,
+// session.ts and db-encryption.ts all refuse to boot without it, so no
+// currently-booting deployment can hit the throw below), and in
+// non-production with neither set use an ephemeral per-process random key
+// (same dev ergonomics as db-encryption's ephemeral key: after a restart,
+// v1 entries written under the previous ephemeral key recompute
+// differently and are reported as tampered — loud by design, and fixed by
+// setting the secret in .env.local).
+//
+// ROTATION CAVEAT: changing the secret changes what v1 entries hash to.
+// Entries written under the OLD secret will be flagged `__tampered` after
+// the rotation (legacy plain-SHA-256 entries are unaffected — they are
+// keyless). When rotating, archive/seal the old log (or accept the flags)
+// — there is no way to verify a keyed chain without the key that keyed it.
+
+/** Version prefix on `__hash` values written by the v1 keyed scheme. */
+const HMAC_V1_PREFIX = "hmac:v1:";
+
+/** scrypt salt for deriving the audit HMAC key (domain separation). */
+const AUDIT_HMAC_SALT = "insight-replay-audit-hmac-v1";
+
+function resolveAuditHmacKey(): Buffer {
+  const raw = process.env.AUDIT_HMAC_SECRET || process.env.SESSION_SECRET;
+  if (!raw) {
+    if (process.env.NODE_ENV === "production") {
+      // Fail-closed, loud by design. Unreachable for any deployment that
+      // currently boots (they all already require SESSION_SECRET at boot).
+      throw new Error(
+        "AUDIT_HMAC_SECRET (or SESSION_SECRET) is not set — refusing to " +
+          "boot in production without an HMAC key for the audit hash " +
+          "chain. Set AUDIT_HMAC_SECRET in the environment (see " +
+          "scripts/generate-secret.sh).",
+      );
+    }
+    // Dev/test-only ephemeral fallback — see the rotation caveat above.
+    return randomBytes(32);
+  }
+  // Stretch + domain-separate (same derivation pattern as crypto.ts's
+  // ENCRYPTION_KEY): even when falling back to SESSION_SECRET, the audit
+  // chain key differs from every other key derived from that secret.
+  return scryptSync(raw, AUDIT_HMAC_SALT, 32);
+}
+
+const AUDIT_HMAC_KEY = resolveAuditHmacKey();
+
+/**
+ * Legacy plain SHA-256 hex digest — VERIFICATION-ONLY. Used exclusively
+ * to recompute hashes for pre-v1 entries (whose stored `__hash` has no
+ * `hmac:v1:` prefix) so existing log files keep verifying. New entries
+ * are always written with `hmacV1` below.
+ */
+function legacySha256(s: string): string {
   return createHash("sha256").update(s, "utf8").digest("hex");
+}
+
+/** v1 keyed digest: HMAC-SHA256 under the server secret, version-prefixed. */
+function hmacV1(s: string): string {
+  return (
+    HMAC_V1_PREFIX +
+    createHmac("sha256", AUDIT_HMAC_KEY).update(s, "utf8").digest("hex")
+  );
 }
 
 /**
@@ -134,15 +221,36 @@ function hashPayload(
 }
 
 /**
- * Compute the chain hash for an entry.
+ * Compute the chain hash for an entry — v1 keyed construction (writer).
  *
- * `__hash` = SHA-256(`__prev_hash` + JSON.stringify({action, projectId,
- * actor, ip, timestamp})). The `__prev_hash` is prepended as a literal
- * string so editing any of the five covered fields, or editing the
- * `__prev_hash` itself, changes the recomputed hash and breaks the chain.
+ * `__hash` = "hmac:v1:" + HMAC-SHA256(serverSecret, `__prev_hash` +
+ * JSON.stringify({action, projectId, actor, ip, timestamp})). The
+ * `__prev_hash` is prepended as a literal string so editing any of the five
+ * covered fields, or editing the `__prev_hash` itself, changes the
+ * recomputed hash and breaks the chain — and the keying means an attacker
+ * needs the server secret to forge a replacement chain.
  */
 function computeEntryHash(prevHash: string, entry: AuditEntry): string {
-  return sha256(prevHash + JSON.stringify(hashPayload(entry)));
+  return hmacV1(prevHash + JSON.stringify(hashPayload(entry)));
+}
+
+/**
+ * Recompute an entry's chain hash for VERIFICATION, using the algorithm
+ * indicated by the stored `__hash`'s version prefix:
+ *   - `hmac:v1:…` → keyed HMAC (entries written by the current writer),
+ *   - anything else → legacy plain SHA-256 (pre-upgrade entries; verified
+ *     keylessly so existing log files keep passing after this deploy).
+ * Keeping the dispatch on the STORED value (rather than the current
+ * configuration) is what makes the upgrade backward compatible.
+ */
+function recomputeEntryHash(
+  prevHash: string,
+  entry: AuditEntry,
+  storedHash: string,
+): string {
+  return storedHash.startsWith(HMAC_V1_PREFIX)
+    ? hmacV1(prevHash + JSON.stringify(hashPayload(entry)))
+    : legacySha256(prevHash + JSON.stringify(hashPayload(entry)));
 }
 
 /**
@@ -168,11 +276,11 @@ async function readLastLine(path: string): Promise<string | null> {
  *
  * The current ISO timestamp is added automatically. The entry is extended
  * with `__prev_hash` (the previous chained entry's `__hash`, or `"genesis"`
- * for the first chained entry) and `__hash`
- * (SHA-256(`__prev_hash` + JSON.stringify({action, projectId, actor, ip,
- * timestamp}))), forming a tamper-evident chain. Wrapped in try/catch so
- * logging failures never propagate to the caller — a broken audit trail
- * must not break the user's request.
+ * for the first chained entry) and `__hash` ("hmac:v1:" +
+ * HMAC-SHA256(serverSecret, `__prev_hash` + JSON.stringify({action,
+ * projectId, actor, ip, timestamp}))), forming a tamper-evident chain.
+ * Wrapped in try/catch so logging failures never propagate to the caller —
+ * a broken audit trail must not break the user's request.
  *
  * Edge cases:
  *  - File doesn't exist or is empty → first entry has `__prev_hash: "genesis"`.
@@ -281,8 +389,9 @@ export async function readAuditLog(limit = 100): Promise<AuditEntry[]> {
 /**
  * Verify a list of audit entries' hash chain.
  *
- * For each entry this recomputes `__hash` = SHA-256(`__prev_hash` +
- * JSON.stringify({action, projectId, actor, ip, timestamp})) from the entry's
+ * For each entry this recomputes `__hash` — keyed HMAC for `hmac:v1:`-
+ * prefixed values, legacy plain SHA-256 otherwise — over `__prev_hash` +
+ * JSON.stringify({action, projectId, actor, ip, timestamp}) from the entry's
  * own fields and compares it to the stored `__hash`. Any mismatch marks the
  * entry with `__tampered: true`. Tampering with `action`, `projectId`,
  * `actor`, `ip`, or `timestamp` (or with `__prev_hash` itself, which feeds
@@ -323,10 +432,13 @@ export function verifyAuditChain<T extends AuditEntry>(
     }
 
     // Hash check: recompute over `__prev_hash + JSON.stringify({action,
-    // projectId, actor, ip, timestamp})` and compare to stored __hash.
-    const recomputed = computeEntryHash(
+    // projectId, actor, ip, timestamp})` using the algorithm the STORED
+    // `__hash`'s version prefix indicates (keyed HMAC for `hmac:v1:`
+    // values, legacy plain SHA-256 otherwise) and compare to stored __hash.
+    const recomputed = recomputeEntryHash(
       entry.__prev_hash as string,
       entry,
+      entry.__hash as string,
     );
     return { ...entry, __tampered: recomputed !== entry.__hash };
   });
@@ -339,8 +451,10 @@ export function verifyAuditChain<T extends AuditEntry>(
  * `__prev_hash` and `__hash` fields):
  *   1. Continuity check — `__prev_hash` must equal the `__hash` of the previous
  *      chained entry (or `"genesis"` for the first chained entry).
- *   2. Hash check — recomputing `sha256(__prev_hash + JSON.stringify({action,
- *      projectId, actor, ip, timestamp}))` must equal the stored `__hash`.
+ *   2. Hash check — recomputing the entry's hash (keyed HMAC for
+ *      `hmac:v1:`-prefixed values, legacy plain SHA-256 otherwise) over
+ *      `__prev_hash + JSON.stringify({action, projectId, actor, ip,
+ *      timestamp})` must equal the stored `__hash`.
  *
  * Legacy pre-chain entries (no `__prev_hash`/`__hash`) are skipped silently —
  * they are grandfathered in but do not contribute to the chain.
@@ -408,8 +522,14 @@ export async function verifyAuditIntegrity(): Promise<IntegrityReport> {
     }
 
     // Hash: recompute over `__prev_hash + JSON.stringify({action, projectId,
-    // actor, ip, timestamp})`.
-    const recomputed = computeEntryHash(prevHash, parsed as unknown as AuditEntry);
+    // actor, ip, timestamp})`, using the algorithm the stored `__hash`'s
+    // version prefix indicates (keyed HMAC for `hmac:v1:` values, legacy
+    // plain SHA-256 otherwise).
+    const recomputed = recomputeEntryHash(
+      prevHash,
+      parsed as unknown as AuditEntry,
+      storedHash,
+    );
     if (recomputed !== storedHash) {
       return {
         valid: false,

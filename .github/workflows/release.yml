@@ -14,7 +14,7 @@ name: Release
 #                of CHANGELOG.md whose `## [X.Y.Z]` header matches the tag
 #                (with the leading `v` stripped), and creates a GitHub
 #                Release with that body and the standalone tarball +
-#                sha256 checksum attached via softprops/action-gh-release@v2.
+#                sha256 checksum attached via softprops/action-gh-release@v3.
 #
 # Least-privilege: workflow-level `permissions: { contents: write }`
 # (required by softprops/action-gh-release to create the release). The
@@ -52,22 +52,22 @@ jobs:
       DATABASE_URL: file:/tmp/test.db
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Setup bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: "1.3.0"
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         # No `cache:` input on purpose: this project resolves dependencies
         # with bun (bun.lock) and ships no npm/yarn lockfile, so setup-node
         # cannot compute an npm cache key and the step would fail with
         # "Dependencies lock file is not found".
 
       - name: Cache bun install
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
@@ -83,7 +83,7 @@ jobs:
         run: bun run db:generate
 
       - name: Cache .next/cache
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .next/cache
           key: ${{ runner.os }}-next-cache-${{ hashFiles('**/*.ts', '**/*.tsx', 'next.config.ts') }}
@@ -96,20 +96,26 @@ jobs:
         run: bun run build
 
       - name: Package standalone artifact
+        # Pass the tag name via env and reference it as a quoted shell
+        # variable below — interpolating ${{ github.ref_name }} directly
+        # into the script would allow shell injection via a crafted tag
+        # name (GitHub expressions are expanded before the shell runs).
+        env:
+          REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           # Tar+gzip the standalone server bundle. Compresses the
           # node_modules subset Next.js traced into the standalone output.
           cd .next
-          tar -czf ../insight-replay-standalone-${{ github.ref_name }}.tar.gz \
+          tar -czf "../insight-replay-standalone-${REF_NAME}.tar.gz" \
             standalone
           cd ..
-          sha256sum insight-replay-standalone-${{ github.ref_name }}.tar.gz \
-            > insight-replay-standalone-${{ github.ref_name }}.tar.gz.sha256
-          ls -lh insight-replay-standalone-${{ github.ref_name }}.tar.gz*
+          sha256sum "insight-replay-standalone-${REF_NAME}.tar.gz" \
+            > "insight-replay-standalone-${REF_NAME}.tar.gz.sha256"
+          ls -lh "insight-replay-standalone-${REF_NAME}.tar.gz"*
 
       - name: Upload standalone artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: insight-replay-standalone-${{ github.ref_name }}
           path: |
@@ -126,10 +132,10 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Download standalone artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: insight-replay-standalone-${{ github.ref_name }}
           path: release-assets
@@ -168,7 +174,7 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           # Release name mirrors the tag (e.g. `v0.7.0-SECURE-34L`).
           name: ${{ github.ref_name }}

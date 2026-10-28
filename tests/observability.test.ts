@@ -16,7 +16,8 @@ import {
   logger,
   readAppLog,
 } from "../src/lib/observability"
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs"
+import { existsSync } from "fs"
+import { mkdir, readFile, writeFile } from "fs/promises"
 import { join } from "path"
 
 // The observability module stashes its metrics Map on globalThis to survive
@@ -31,10 +32,30 @@ const LOG_DIR = join(process.cwd(), "logs")
 const LOG_FILE = join(LOG_DIR, "app.jsonl")
 
 // Make sure the log directory + file exist so we can snapshot/restore.
-function ensureLogFile() {
+//
+// SECURITY (CodeQL js/file-system-race): the old version did
+// `if (!existsSync(LOG_DIR)) mkdirSync(...)` / `if (!existsSync(LOG_FILE))
+// writeFileSync(...)` — a classic check-then-act TOCTOU window: the state
+// can change between the existsSync probe and the operation, and two
+// concurrent workers racing through this setup can clobber each other.
+// The race-free equivalent:
+//   - `mkdir(..., { recursive: true })` is idempotent — it succeeds (no
+//     error) whether or not the directory already exists, so no probe is
+//     needed (and none would be safe);
+//   - `writeFile(..., { flag: "wx" })` = O_CREAT | O_EXCL — create ONLY
+//     if absent, atomically. If the file already exists (or appears
+//     concurrently), the promise rejects with EEXIST, which we swallow:
+//     the file existing is exactly the outcome we want either way.
+async function ensureLogFile() {
   try {
-    if (!existsSync(LOG_DIR)) mkdirSync(LOG_DIR, { recursive: true })
-    if (!existsSync(LOG_FILE)) writeFileSync(LOG_FILE, "", "utf-8")
+    await mkdir(LOG_DIR, { recursive: true })
+    await writeFile(LOG_FILE, "", { encoding: "utf-8", flag: "wx" }).catch(
+      () => {
+        // EEXIST (already there — fine) or a transient error: either way
+        // the snapshot/restore logic below tolerates a missing file, so
+        // best-effort is enough here.
+      },
+    )
   } catch {
     // ignore — best-effort setup
   }
@@ -45,19 +66,19 @@ function ensureLogFile() {
 // entries. Using beforeAll (not beforeEach) ensures the snapshot is the
 // pristine pre-test state.
 let logSnapshot: string | null = null
-beforeAll(() => {
-  ensureLogFile()
+beforeAll(async () => {
+  await ensureLogFile()
   try {
-    logSnapshot = readFileSync(LOG_FILE, "utf-8")
+    logSnapshot = await readFile(LOG_FILE, "utf-8")
   } catch {
     logSnapshot = ""
   }
 })
 
-afterAll(() => {
+afterAll(async () => {
   // Restore the log file to its pre-test contents (best-effort).
   try {
-    if (logSnapshot !== null) writeFileSync(LOG_FILE, logSnapshot, "utf-8")
+    if (logSnapshot !== null) await writeFile(LOG_FILE, logSnapshot, "utf-8")
   } catch {
     // ignore
   }

@@ -6,9 +6,9 @@
 # under the Bun runtime.
 #
 # Stages:
-#   1. deps    — install node_modules into a reusable layer (oven/bun:1.1)
+#   1. deps    — install node_modules into a reusable layer (oven/bun:1.4)
 #   2. builder — copy src + run `bun run build` → .next/standalone output
-#   3. runner  — oven/bun:1.1-slim runtime, copies standalone + static + public
+#   3. runner  — oven/bun:1.4-slim runtime, copies standalone + static + public
 #
 # Build context is the repo root (COPY . . in the builder stage). The sibling
 # `.dockerignore` filters out node_modules / .next / .git / logs / tests /
@@ -21,7 +21,7 @@
 # @prisma/client engine binaries) have gcc / python / make available during
 # `bun install`. The result is a fully populated /app/node_modules layer that
 # the builder stage reuses.
-FROM oven/bun:1.1 AS deps
+FROM oven/bun:1.4 AS deps
 WORKDIR /app
 
 # Copy ONLY the package manifest up-front so that source-tree edits do NOT
@@ -35,7 +35,7 @@ RUN bun install
 # ---------- Stage 2: builder -------------------------------------------------
 # Same base as deps so the copied /app/node_modules binaries match the
 # platform/arch of this stage (no cross-stage ABI mismatch).
-FROM oven/bun:1.1 AS builder
+FROM oven/bun:1.4 AS builder
 WORKDIR /app
 
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -54,7 +54,7 @@ RUN bun run build
 # ---------- Stage 3: runner -------------------------------------------------
 # Slim runtime — no build toolchain, smaller attack surface, smaller image.
 # Bun is still required because the CMD invokes `bun` to start server.js.
-FROM oven/bun:1.1-slim AS runner
+FROM oven/bun:1.4-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production \
@@ -74,8 +74,20 @@ COPY --from=builder /app/.next/standalone ./.next/standalone
 COPY --from=builder /app/.next/static ./.next/standalone/.next/static
 COPY --from=builder /app/public ./.next/standalone/public
 
+# Security: never run the server as root. The oven/bun base image ships no
+# built-in unprivileged user (unlike node:* images), so create a dedicated
+# system user/group. The Next.js standalone server writes its ISR/fetch cache
+# under /app/.next at runtime, and any SQLite DATABASE_URL placed under /app
+# must be writable too, so hand the whole WORKDIR tree over to that user.
+RUN groupadd --system --gid 1001 app \
+    && useradd --system --uid 1001 --gid app app \
+    && chown -R app:app /app
+
 # Next.js standalone server listens on $PORT (default 3000) at $HOSTNAME.
 EXPOSE 3000
+
+# Drop privileges before the server starts.
+USER app
 
 # Bun executes the standalone server.js. Path is relative to WORKDIR /app.
 CMD ["bun", ".next/standalone/server.js"]
