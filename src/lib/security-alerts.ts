@@ -296,22 +296,77 @@ function buildGenericPayload(c: AlertContent): unknown {
 type WebhookType = "discord" | "slack" | "teams" | "generic"
 
 /**
- * Detect the webhook provider from the URL host. Discord / Slack / Teams
- * each use stable, well-known hostnames in their generated webhook URLs.
- * Anything else falls through to the generic payload.
+ * Detect the webhook provider from the URL.
+ *
+ * SECURITY (CodeQL js/incomplete-url-substring-sanitization): this used to
+ * be naive substring matching (`url.includes("discord.com/api/webhooks")`
+ * etc). Substring checks on URLs are trivially bypassed —
+ * `https://evil.example/?u=https://discord.com/api/webhooks`, or a hostname
+ * like `discord.com.attacker.example`, both contain the substring — so a
+ * security-relevant decision must never be made on raw substrings.
+ *
+ * Now: parse with `new URL(...)` and validate against a strict allowlist.
+ *   - Parse failure → reject: no provider matches (generic payload).
+ *   - Protocol MUST be `http:` or `https:` (allowlist — anything else,
+ *     e.g. `file:` / `javascript:`, matches no provider).
+ *   - Hostname MUST be one of the providers' real webhook hosts — exact
+ *     match, plus a dot-boundary subdomain match for `*.webhook.office.com`
+ *     (Microsoft issues modern Teams webhooks on per-tenant subdomains of
+ *     that host). `evil-discord.com` and `discord.com.evil.example` match
+ *     nothing.
+ *   - Path must match the provider's real webhook path prefix
+ *     (`/api/webhooks`, `/services`, `/webhook…`) — lowercased to preserve
+ *     the old case-insensitive matching for these known-lowercase paths.
+ *
+ * This function only picks the PAYLOAD FORMAT — a URL that matches no
+ * provider gets the generic JSON payload, which any receiver can still
+ * consume. The actual outbound fetch is separately gated by `safeFetch()`
+ * (src/lib/ssrf-guard.ts), which re-validates scheme/host/DNS at fetch
+ * time — so nothing here can cause a fetch that safeFetch would not itself
+ * scrutinize.
  */
 function detectWebhookType(url: string): WebhookType {
-  const u = url.toLowerCase()
-  if (u.includes("discord.com/api/webhooks") || u.includes("discordapp.com/api/webhooks")) {
+  let u: URL
+  try {
+    u = new URL(url)
+  } catch {
+    // Unparseable URL → reject: no allowlist entry can match.
+    return "generic"
+  }
+  // Strict scheme allowlist — http/https only.
+  if (u.protocol !== "https:" && u.protocol !== "http:") return "generic"
+  // URL.hostname is already lowercased by the parser; lowercase the path
+  // too so the known provider path prefixes match case-insensitively
+  // (preserving the behavior of the old pre-lowercased substring check).
+  const host = u.hostname.toLowerCase()
+  const path = u.pathname.toLowerCase()
+
+  // Discord: https://discord.com/api/webhooks/<id>/<token>
+  //          https://discordapp.com/api/webhooks/<id>/<token> (legacy host)
+  if (
+    (host === "discord.com" || host === "discordapp.com") &&
+    (path === "/api/webhooks" || path.startsWith("/api/webhooks/"))
+  ) {
     return "discord"
   }
-  if (u.includes("hooks.slack.com/services")) {
+  // Slack: https://hooks.slack.com/services/T…/B…/XXXX
+  if (
+    host === "hooks.slack.com" &&
+    (path === "/services" || path.startsWith("/services/"))
+  ) {
     return "slack"
   }
+  // Teams: https://outlook.office.com/webhook/<id>/IncomingWebhook/…
+  //        https://<tenant>.webhook.office.com/webhookb2/<id>/… (modern)
+  // The subdomain match uses an explicit dot boundary so
+  // `evil-webhook.office.com` / `webhook.office.com.evil.example` cannot
+  // match. The path check accepts both the legacy `/webhook/…` and the
+  // current `/webhookb2/…` endpoint shapes.
   if (
-    u.includes("webhook.office.com") ||
-    u.includes("outlook.office.com/webhook") ||
-    u.includes("outlook.office.com/webhook")
+    (host === "outlook.office.com" ||
+      host === "webhook.office.com" ||
+      host.endsWith(".webhook.office.com")) &&
+    path.startsWith("/webhook")
   ) {
     return "teams"
   }

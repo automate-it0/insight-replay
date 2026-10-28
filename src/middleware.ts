@@ -66,6 +66,15 @@ function getRequestStartMs(req: NextRequest): number | null {
 
 // Next.js Edge Middleware — runs before all matched routes.
 //
+// SECURITY INVARIANT (path canonicalization — js/user-controlled-bypass
+// hardening): every path-based decision in this file is made against the
+// SERVER-COMPUTED canonical path (see `canonicalizePath`), never against
+// the raw client-supplied pathname, and every "skip this check" exemption
+// additionally requires that the path canonicalized cleanly
+// (`pathTrusted`). No spelling of a URL that an attacker puts on the
+// request line (percent-encoding, trailing/doubled slashes, dot segments)
+// may select a weaker set of checks than the route it actually executes.
+//
 // Layered responsibilities, in this order:
 //   0. CORS allowlist (strict) — on non-track API routes only. Origins NOT
 //      on the ALLOWED_ORIGINS env var allowlist (plus dev localhost:3000 /
@@ -212,6 +221,96 @@ function isApiPath(path: string): boolean {
 
 function isTrackPath(path: string): boolean {
   return path === "/api/track" || path.startsWith("/api/track/")
+}
+
+// ─── Path canonicalization (js/user-controlled-bypass hardening) ─────────
+//
+// WHY THIS EXISTS
+// ----------------
+// `req.nextUrl.pathname` is raw, attacker-controlled bytes. Two CodeQL
+// `js/user-controlled-bypass` findings (severity: error) flagged that
+// request-controlled data decided whether security checks ran:
+//
+//   1. Layer 1 — `path === "/api/track/events"` gated the ONLY rate
+//      limit on public SDK ingest. Alternate spellings of the same URL
+//      (a trailing slash, a doubled slash, a percent-encoded character)
+//      failed the byte-exact match and skipped the throttle, while every
+//      other layer prefix-exempts /api/track/* — so the variant path
+//      sailed through with NO middleware check at all.
+//   2. Layer 3b — `isSignatureExemptPath(path)` skipped the request-
+//      signature replay check whenever the raw path *looked* like a
+//      track/auth route. Because the Next.js router can normalize paths
+//      differently from a byte-prefix comparison (percent-decoding,
+//      trailing slashes, doubled slashes — "path confusion"), a hostile
+//      spelling could claim the exemption here while executing a
+//      protected route.
+//
+// THE FIX — let the SERVER compute the authoritative path:
+//
+//   - Every path-based security decision in `middleware()` runs against
+//     the output of this function (decoded once, dot-segments resolved,
+//     duplicate slashes collapsed) — never against the raw client bytes.
+//   - Every "skip this check" exemption (CORS track-skip, Content-Type,
+//     CSRF, request-signature, public-path) additionally requires
+//     `pathTrusted === true` at the call site.
+//   - If the raw path cannot be canonicalized with confidence (malformed
+//     percent-escape, double-encoding, control characters, backslash),
+//     this returns null → `pathTrusted` is false → ALL exemptions are
+//     disabled for the request. It must then clear Content-Type, CSRF,
+//     signature and session checks like any protected route — the
+//     strictest posture the middleware can impose (fail-closed).
+//
+// Legitimate traffic is unaffected: every route in this app lives in a
+// fixed ASCII namespace (/api/track/events, /api/auth/login, /login, …)
+// and well-behaved clients send those paths verbatim, for which
+// canonicalization is the identity function.
+function canonicalizePath(pathname: string): string | null {
+  // Next.js always hands middleware an absolute path, but the check keeps
+  // this helper total if it is ever reused on an un-parsed string.
+  if (typeof pathname !== "string" || !pathname.startsWith("/")) return null
+
+  // Decode percent-escapes ONCE — the same depth of decoding the Next.js
+  // router applies when resolving a request to a route handler. Anything
+  // the decoder chokes on (dangling "%", truncated multi-byte escape)
+  // is ambiguous by definition → fail-closed (return null).
+  let decoded: string
+  try {
+    decoded = decodeURIComponent(pathname)
+  } catch {
+    return null
+  }
+
+  // Escapes still present after one decode = double-encoding ("%252e").
+  // The router won't decode them again either, so no single route can be
+  // trusted to correspond to these bytes → fail-closed.
+  if (decoded.includes("%")) return null
+
+  // Control characters (incl. NUL), DEL, and backslash never occur in this
+  // app's route namespace. They are classic path-confusion raw material
+  // (%00 truncation, "\" treated as a separator on some stacks), so treat
+  // any occurrence as hostile instead of trying to interpret it.
+  if (/[\u0000-\u001f\u007f\\]/.test(decoded)) return null
+
+  // Collapse duplicate slashes ("//api/x" → "/api/x") and resolve "." /
+  // ".." dot segments. The WHATWG URL parser behind `req.nextUrl` has
+  // ALREADY resolved literal and single-encoded dot segments ("/a/../b"
+  // and "/a/%2e%2e/b" both arrive here as "/b"), so these passes are
+  // normally no-ops — they exist so this helper stays correct if it is
+  // ever reused on a raw, un-parsed string.
+  const segments: string[] = []
+  for (const segment of decoded.replace(/\/{2,}/g, "/").split("/")) {
+    if (segment === "" || segment === ".") continue
+    if (segment === "..") {
+      segments.pop()
+      continue
+    }
+    segments.push(segment)
+  }
+
+  // Trailing slashes fall out of the split naturally ("/x/" → "/x"),
+  // matching how the router treats both spellings as the same route.
+  // The root path normalizes to "/".
+  return segments.length > 0 ? "/" + segments.join("/") : "/"
 }
 
 /**
@@ -527,7 +626,29 @@ function isCompromised(): boolean {
 }
 
 export async function middleware(req: NextRequest) {
-  const path = req.nextUrl.pathname
+  // ─── Request-path canonicalization (feeds every decision below) =======
+  //
+  // `rawPathname` is EXACTLY what the client put on the HTTP request
+  // line — untrusted bytes. `canonicalizePath()` computes the server-side,
+  // normalized interpretation of those bytes (percent-decoded, dot-segment
+  // resolved, slash-collapsed). All security decisions below run against
+  // `path` (the canonical form), and every check exemption additionally
+  // requires `pathTrusted` — see the full rationale on `canonicalizePath`.
+  //
+  // Fail-closed contract: if the raw path can't be canonicalized with
+  // confidence, `pathTrusted` is false and NO exemption or short-circuit
+  // applies for this request — it must clear the strict layers
+  // (Content-Type, CSRF, signature, session) like any protected route.
+  const rawPathname = req.nextUrl.pathname
+  const canonicalPath = canonicalizePath(rawPathname)
+  // Canonical form when computable, else the raw bytes (so metrics and
+  // redirect bookkeeping still have something to work with — those are
+  // non-security uses and must not crash on hostile input).
+  const path = canonicalPath ?? rawPathname
+  // True ⇒ the path decoded + normalized cleanly, so `path` reliably
+  // names the route Next.js will execute. False ⇒ ambiguous/hostile
+  // path ⇒ every check-exemption below is disabled (fail-closed).
+  const pathTrusted = canonicalPath !== null
   const start = Date.now()
   const method = req.method.toUpperCase()
   const origin = req.headers.get("origin")
@@ -641,7 +762,12 @@ export async function middleware(req: NextRequest) {
   // posts from third-party website origins). Page routes don't go through
   // CORS here — browsers don't enforce CORS on top-level navigations, and
   // same-origin fetches don't send an Origin header.
-  if (isApiPath(path) && !isTrackPath(path)) {
+  //
+  // Hardening (js/user-controlled-bypass): the track-path CORS skip is
+  // only honored for canonical, server-verified paths. A path spelling
+  // that doesn't canonicalize cleanly (`pathTrusted === false`) gets the
+  // CORS check applied — never the exemption.
+  if (isApiPath(path) && !(pathTrusted && isTrackPath(path))) {
     if (method === "OPTIONS") {
       // Preflight — return 204 with CORS headers if origin is allowlisted,
       // 403 otherwise. Max-Age is intentionally short (5 min) so a stale
@@ -697,7 +823,24 @@ export async function middleware(req: NextRequest) {
   }
 
   // ─── Layer 1: Rate limiting ============================================
-  if (path === "/api/track/events") {
+  // SECURITY FIX (CodeQL js/user-controlled-bypass — this exact-match on
+  // the request-controlled pathname was the flagged conditional): the
+  // ingest throttle used to apply only when the RAW pathname byte-equals
+  // "/api/track/events". Any other spelling of the SAME route — a
+  // trailing slash ("/api/track/events/"), a doubled slash
+  // ("//api/track/events"), a percent-encoded character
+  // ("/api/track/e%76ents") — failed the comparison and therefore
+  // skipped the ONLY middleware check in front of public SDK ingest
+  // (every other layer prefix-exempts /api/track/*). In other words: the
+  // attacker-controlled URL decided whether the rate-limit security
+  // check ran at all.
+  //
+  // Now the match runs against the server-computed canonical path, so
+  // every spelling of the ingest route lands in the same INGEST_LIMIT
+  // bucket, and a path we can't canonicalize with confidence
+  // (`pathTrusted === false`) doesn't get this short-circuit at all — it
+  // falls through to the strict CSRF / signature / session layers below.
+  if (pathTrusted && path === "/api/track/events") {
     const ip = getClientIP(req as unknown as Request)
     const result = rateLimit(ip, INGEST_LIMIT)
 
@@ -783,7 +926,11 @@ export async function middleware(req: NextRequest) {
   //                     handler actually fires and bans the IP (mirrors
   //                     the CSRF exemption logic when present).
   // GET/HEAD/OPTIONS are skipped — they have no body.
-  if (MUTATING_METHODS.has(method) && !isContentTypeExemptPath(path)) {
+  //
+  // Hardening (js/user-controlled-bypass): exemptions are only honored
+  // for canonical, trusted paths — an ambiguous path gets the strict
+  // Content-Type check, never the skip.
+  if (MUTATING_METHODS.has(method) && !(pathTrusted && isContentTypeExemptPath(path))) {
     const contentType = req.headers.get("content-type")
     // Compare case-insensitively: HTTP header values are case-insensitive
     // and some clients send `Application/JSON`. startsWith() covers the
@@ -843,7 +990,12 @@ export async function middleware(req: NextRequest) {
   //   - /api/csrf-token     — the endpoint that mints the token (chicken-
   //                           and-egg: must be reachable to GET a token).
   // GET/HEAD/OPTIONS are safe / preflight → skipped.
-  if (MUTATING_METHODS.has(method) && !isCsrfExemptPath(path)) {
+  //
+  // Hardening (js/user-controlled-bypass): the CSRF exemption is only
+  // honored for canonical, trusted paths — a path spelling that doesn't
+  // canonicalize cleanly must present a valid CSRF token like every other
+  // protected route.
+  if (MUTATING_METHODS.has(method) && !(pathTrusted && isCsrfExemptPath(path))) {
     const headerToken = req.headers.get(CSRF_HEADER_NAME)
     const cookieToken = req.cookies.get(CSRF_COOKIE_NAME)?.value ?? null
     if (!validateCsrfToken(headerToken, cookieToken)) {
@@ -902,7 +1054,19 @@ export async function middleware(req: NextRequest) {
   //   - "malformed"  → header present but not `<int>:<hex>`.
   //   - "expired"    → timestamp older than 5 min or > 60s in the future.
   //   - "invalid"    → HMAC doesn't match (tampered payload, wrong key).
-  if (MUTATING_METHODS.has(method) && !isSignatureExemptPath(path)) {
+  //
+  // SECURITY FIX (CodeQL js/user-controlled-bypass — this exemption guard
+  // was the flagged conditional): the signature requirement used to be
+  // skipped whenever the RAW request-controlled pathname claimed to be a
+  // track/auth route. Because the Next.js router can normalize a path
+  // differently than a byte-prefix comparison does (percent-decoding,
+  // trailing slashes, doubled slashes — "path confusion"), a hostile
+  // spelling could present itself as an exempt prefix here while
+  // executing a protected route, silently shedding the replay check.
+  // The exemption is now honored ONLY when the path canonicalized cleanly
+  // (`pathTrusted`), i.e. the server has verified the bytes actually name
+  // a track/auth route; anything ambiguous must carry a valid signature.
+  if (MUTATING_METHODS.has(method) && !(pathTrusted && isSignatureExemptPath(path))) {
     const sigHeader = req.headers.get(REQUEST_SIG_HEADER)
     // The CSRF token from the header is the shared secret the client used
     // to compute the HMAC. The CSRF layer above already verified this
@@ -927,9 +1091,15 @@ export async function middleware(req: NextRequest) {
       // HMAC over the empty-body hash and compare to the provided mac —
       // which will not match what the client signed over the real body.
     }
+    // NOTE: the signature is verified over the RAW pathname, not the
+    // canonical one — the client signs the URL exactly as it fetches it,
+    // so canonicalizing only the server side would break legitimate
+    // signed requests. (The decision whether to REQUIRE a signature at
+    // all is what was hardened above; the verification itself was never
+    // the path-confusable part.)
     const sigResult = await verifyRequestSignature(
       method,
-      path,
+      rawPathname,
       bodyText,
       sigHeader,
       csrfToken,
@@ -973,7 +1143,12 @@ export async function middleware(req: NextRequest) {
   // don't actually call `getSession()`, so this format check rejects obviously
   // fake / malformed cookies early — preventing a cookie like `ir_session=1`
   // or `ir_session=garbage` from sailing straight through to a protected page.
-  if (!isPublicPath(path)) {
+  //
+  // Hardening (js/user-controlled-bypass): the public-path skip is only
+  // honored for canonical, trusted paths. A path that doesn't canonicalize
+  // cleanly is treated as PROTECTED (fail-closed) — it must present a
+  // session cookie like any dashboard route.
+  if (!(pathTrusted && isPublicPath(path))) {
     const session = req.cookies.get(SESSION_COOKIE_NAME)?.value
 
     // Validate format: two dot-separated non-empty parts, second part is hex.
@@ -1009,7 +1184,11 @@ export async function middleware(req: NextRequest) {
       const loginUrl = req.nextUrl.clone()
       loginUrl.pathname = "/login"
       loginUrl.search = ""
-      const from = path + req.nextUrl.search
+      // Use the RAW pathname for the post-login bounce-back so the user
+      // returns to exactly what they requested (canonicalization feeds
+      // security decisions only — it must not rewrite user-visible
+      // redirects).
+      const from = rawPathname + req.nextUrl.search
       loginUrl.searchParams.set("from", from)
       const res = NextResponse.redirect(loginUrl)
       // Clear the bad/missing cookie so the client doesn't keep replaying it.

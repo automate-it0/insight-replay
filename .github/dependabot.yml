@@ -8,11 +8,17 @@ updates:
       time: "06:00"
       timezone: "Africa/Cairo"
     open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7

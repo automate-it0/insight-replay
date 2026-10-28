@@ -297,7 +297,10 @@ export function encryptField(plaintext: string): string {
   if (typeof plaintext !== "string") return ""
   try {
     const iv = randomBytes(IV_LENGTH)
-    const cipher = createCipheriv(ALGORITHM, ENCRYPTION_KEY, iv)
+    // authTagLength pinned explicitly — the same value Node would default
+    // to and the exact length decryptField's `AUTH_TAG_LENGTH * 2` hex
+    // check expects. Declarative only; output format is unchanged.
+    const cipher = createCipheriv(ALGORITHM, ENCRYPTION_KEY, iv, { authTagLength: AUTH_TAG_LENGTH })
     const ciphertext = Buffer.concat([
       cipher.update(plaintext, "utf8"),
       cipher.final(),
@@ -349,7 +352,13 @@ export function decryptField(encrypted: string): string {
     const iv = Buffer.from(ivHex, "hex")
     const ciphertext = Buffer.from(ciphertextHex, "hex")
     const authTag = Buffer.from(authTagHex, "hex")
-    const decipher = createDecipheriv(ALGORITHM, ENCRYPTION_KEY, iv)
+    // authTagLength pinned: the decipher itself refuses auth tags of any
+    // other length, so a truncated tag cannot be verified (GCM forgery /
+    // CWE-310). Redundant with the `AUTH_TAG_LENGTH * 2` hex check above
+    // by design — defense in depth at the primitive itself.
+    const decipher = createDecipheriv(ALGORITHM, ENCRYPTION_KEY, iv, {
+      authTagLength: AUTH_TAG_LENGTH,
+    })
     decipher.setAuthTag(authTag)
     // `final()` throws if the auth tag does not verify — the integrity
     // guarantee. The catch below converts that to a "" return so callers
@@ -456,7 +465,12 @@ export function encryptFieldEnvelope(plaintext: string): string {
     //    nonce reuse under the same key is catastrophic (key recovery
     //    via XOR of ciphertexts).
     const wrapIv = randomBytes(IV_LENGTH)
-    const wrapCipher = createCipheriv(ALGORITHM, MASTER_KEY, wrapIv)
+    // authTagLength pinned explicitly (Node's default and the length
+    // decryptFieldEnvelope's hex check expects) — the stored envelope
+    // format is unchanged.
+    const wrapCipher = createCipheriv(ALGORITHM, MASTER_KEY, wrapIv, {
+      authTagLength: AUTH_TAG_LENGTH,
+    })
     const wrappedDek = Buffer.concat([
       wrapCipher.update(dek),
       wrapCipher.final(),
@@ -467,7 +481,9 @@ export function encryptFieldEnvelope(plaintext: string): string {
     //    the master key). The data IV is freshly random and independent
     //    from the wrap IV.
     const dataIv = randomBytes(IV_LENGTH)
-    const dataCipher = createCipheriv(ALGORITHM, dek, dataIv)
+    // authTagLength pinned explicitly, matching the wrap cipher above —
+    // no format change (Node's default is 16).
+    const dataCipher = createCipheriv(ALGORITHM, dek, dataIv, { authTagLength: AUTH_TAG_LENGTH })
     const ciphertext = Buffer.concat([
       dataCipher.update(plaintext, "utf8"),
       dataCipher.final(),
@@ -566,7 +582,13 @@ export function decryptFieldEnvelope(encrypted: string): string {
     const wrapIv = Buffer.from(wrapIvHex, "hex")
     const wrappedDek = Buffer.from(wrappedDekHex, "hex")
     const wrapAuthTag = Buffer.from(wrapAuthTagHex, "hex")
-    const wrapDecipher = createDecipheriv(ALGORITHM, MASTER_KEY, wrapIv)
+    // authTagLength pinned: the decipher rejects tags of any other
+    // length, so a truncated wrap tag cannot be verified (GCM forgery /
+    // CWE-310). Redundant with the hex-length check above on purpose —
+    // the primitive enforces its own invariant too.
+    const wrapDecipher = createDecipheriv(ALGORITHM, MASTER_KEY, wrapIv, {
+      authTagLength: AUTH_TAG_LENGTH,
+    })
     wrapDecipher.setAuthTag(wrapAuthTag)
     dek = Buffer.concat([wrapDecipher.update(wrappedDek), wrapDecipher.final()])
     if (dek.length !== DEK_LENGTH) {
@@ -584,7 +606,11 @@ export function decryptFieldEnvelope(encrypted: string): string {
     const dataIv = Buffer.from(dataIvHex, "hex")
     const ciphertext = Buffer.from(ciphertextHex, "hex")
     const dataAuthTag = Buffer.from(dataAuthTagHex, "hex")
-    const dataDecipher = createDecipheriv(ALGORITHM, dek, dataIv)
+    // authTagLength pinned, same rationale as the wrap decipher above —
+    // a truncated data tag is rejected rather than verified (CWE-310).
+    const dataDecipher = createDecipheriv(ALGORITHM, dek, dataIv, {
+      authTagLength: AUTH_TAG_LENGTH,
+    })
     dataDecipher.setAuthTag(dataAuthTag)
     const plaintext = Buffer.concat([
       dataDecipher.update(ciphertext),

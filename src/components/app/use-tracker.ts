@@ -3,6 +3,31 @@
 import { useEffect, useRef } from "react"
 import { io, Socket } from "socket.io-client"
 
+// SECURITY FIX (CodeQL js/insecure-randomness — same fix as the standalone
+// SDK served by /api/track/script): visitor/session IDs used to be generated
+// with Math.random(), which is NOT cryptographically secure — its output is
+// predictable, so an attacker who observes one generated ID can forecast
+// subsequent ones and impersonate other visitors' sessions (these IDs are
+// the only identity signal the ingest API has for a visitor).
+//
+// Use the Web Crypto API instead. We use `crypto.getRandomValues` (rather
+// than `crypto.randomUUID`) because the dashboard is self-hosted and may
+// legitimately be served over plain HTTP on a LAN, where `randomUUID` is
+// unavailable (it requires a secure context); `getRandomValues` is a
+// CSPRNG available in every modern browser regardless of context.
+//
+// Output format matches the standalone SDK exactly: `"<prefix>" + 16 hex
+// chars` from 8 CSPRNG bytes (e.g. `v_0f14a2b9c3d5e7f8`). The server treats
+// visitorId/sessionId as opaque strings (no format or length validation
+// anywhere in the ingest path), and IDs already persisted in
+// local/sessionStorage by the old Math.random version keep working
+// unchanged — only NEW ids get the secure format.
+function secureId(prefix: string): string {
+  const b = new Uint8Array(8)
+  crypto.getRandomValues(b)
+  return prefix + Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("")
+}
+
 // Client-side tracker hook used by the in-app demo site.
 // Mirrors the standalone SDK but runs inside React.
 export function useTracker(projectId: string | null | undefined) {
@@ -12,9 +37,9 @@ export function useTracker(projectId: string | null | undefined) {
 
   useEffect(() => {
     if (!projectId) return
-    let visitorId = localStorage.getItem("ir_visitor") || "v_" + Math.random().toString(36).slice(2, 10)
+    let visitorId = localStorage.getItem("ir_visitor") || secureId("v_")
     localStorage.setItem("ir_visitor", visitorId)
-    let sessionId = sessionStorage.getItem("ir_session") || "s_" + Math.random().toString(36).slice(2, 10)
+    let sessionId = sessionStorage.getItem("ir_session") || secureId("s_")
     sessionStorage.setItem("ir_session", sessionId)
     const startTs = Date.now()
     idsRef.current = { visitorId, sessionId, startTs }

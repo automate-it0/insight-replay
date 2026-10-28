@@ -47,9 +47,9 @@ const HTML_ESCAPES: Record<string, string> = {
 // because they appear in legitimate free-form text (e.g. error stacks).
 const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\uFEFF]/g;
 
-// Keys that would let an attacker reach Object.prototype through
-// JSON.parse → object spread / assignment. Matched exactly (case-sensitive).
-const FORBIDDEN_KEYS = /^(__proto__|constructor|prototype)$/;
+// Magic key names rejected by sanitizeValue(). Compared as literal strings
+// inside sanitizeValue (NOT a regex) so the guard is statically verifiable
+// — see the comment at the rejection site for the rationale.
 
 const MAX_DEPTH = 5;
 const MAX_ARRAY_LEN = 50;
@@ -127,8 +127,23 @@ function sanitizeValue(value: unknown, depth: number): unknown {
   const out: Record<string, unknown> = {};
   const obj = value as Record<string, unknown>;
   for (const [rawKey, rawVal] of Object.entries(obj)) {
-    if (FORBIDDEN_KEYS.test(rawKey)) continue; // prototype-pollution guard
     const safeKey = sanitizeString(rawKey, 100);
+    // Prototype-pollution guard (CodeQL js/remote-property-injection).
+    // The magic key names are compared as LITERAL strings — not via a
+    // denylist regex — because literal comparison is a statically
+    // verifiable guard: an analyzer (and a human reviewer) can prove the
+    // tainted key can never equal a magic name at the `out[safeKey]`
+    // assignment below. The check runs on the SANITIZED key, after
+    // control-character stripping, so a payload like `__pro\u0000to__`
+    // (which sanitizes to the literal `__proto__`) is also rejected — the
+    // old pre-sanitization regex check would have missed it.
+    if (
+      safeKey === "__proto__" ||
+      safeKey === "constructor" ||
+      safeKey === "prototype"
+    ) {
+      continue; // prototype-pollution guard
+    }
     if (!safeKey) continue;
     const safeVal = sanitizeValue(rawVal, depth + 1);
     if (safeVal === undefined) continue;
@@ -157,6 +172,59 @@ export interface SanitizablePayload {
 }
 
 /**
+ * Single linear-time pass that removes every complete `<tag …>` /
+ * `</tag>` sequence — a hand-rolled scanner that is semantically identical
+ * to the regex it replaced (`/<\/?[a-zA-Z][^>]*>/g`):
+ *   - a tag starts at a `<` optionally followed by `/`, then a single ASCII
+ *     letter, then any run of non-`>` characters, then a closing `>`;
+ *   - an unterminated `<a…` (no `>`) is KEPT verbatim, exactly as the regex
+ *     did (sanitizeString below then escapes the stray `<`);
+ *   - a `<` not followed by `/`+letter (e.g. `<3`, `a < b`) is literal text
+ *     and kept, exactly as the regex did.
+ *
+ * Why not a regex: the old pattern `[a-zA-Z][^>]*>` gives quadratic worst-
+ * case scanning on adversarial input (`"<a" + "x"*10_000_000` with no
+ * closing `>` — every start position scans to the end). This scanner is
+ * O(n) — each character is visited a bounded number of times (CodeQL
+ * js/polynomial-redos).
+ */
+function stripTagsOnce(s: string): string {
+  let out = "";
+  let i = 0;
+  while (i < s.length) {
+    const lt = s.indexOf("<", i);
+    if (lt === -1) {
+      out += s.slice(i);
+      break;
+    }
+    // Emit the text run before the `<`.
+    out += s.slice(i, lt);
+    // Classify what follows the `<`.
+    let j = lt + 1;
+    if (s[j] === "/") j += 1;
+    const ch = s[j] ?? "";
+    const isLetter =
+      (ch >= "a" && ch <= "z") || (ch >= "A" && ch <= "Z");
+    if (!isLetter) {
+      // Not a tag start — keep the `<` as literal text and continue.
+      out += "<";
+      i = lt + 1;
+      continue;
+    }
+    // Tag-shaped: find the first `>` (the regex's `[^>]*` can never span
+    // one, so first-match semantics are identical).
+    const gt = s.indexOf(">", j);
+    if (gt === -1) {
+      // Unterminated tag — the old regex kept it; keep the rest verbatim.
+      out += s.slice(lt);
+      break;
+    }
+    i = gt + 1; // drop the whole tag
+  }
+  return out;
+}
+
+/**
  * Strip HTML tags from a string in addition to the control-char + entity
  * escaping done by `sanitizeString`. Returns a string with no `<…>` tag
  * sequences, no NUL / C0 / C1 control characters, and no BOM. Length is
@@ -167,12 +235,23 @@ export interface SanitizablePayload {
  */
 export function stripHtml(str: string, maxLen = 1000): string {
   if (typeof str !== "string") return "";
-  // Remove anything that looks like an HTML tag (crude but safe — paired
-  // with the entity escaping in sanitizeString this is belt-and-braces).
-  const noTags = str.replace(/<\/?[a-zA-Z][^>]*>/g, "");
+  // A single removal pass is NOT sufficient: a payload like
+  // `<scr<script>ipt>` becomes `<script>` after one pass removes the inner
+  // tag. Loop until the output stabilizes so recombined tags are also
+  // removed (CodeQL js/incomplete-multi-character-sanitization). The loop
+  // is capped at 5 passes — each changing pass removes at least one `<…>`
+  // pair, so anything still tag-shaped after 5 rounds is adversarial, and
+  // the entity escaping in sanitizeString below remains the backstop that
+  // renders any residual markup inert. The cap keeps the worst case O(n).
+  let cur = str;
+  for (let pass = 0; pass < 5; pass++) {
+    const next = stripTagsOnce(cur);
+    if (next === cur) break; // fixed point — nothing recombined
+    cur = next;
+  }
   // Reuse sanitizeString so control chars + BOM are stripped and any
   // residual `<`, `>`, `&`, `"`, `'` are HTML-escaped.
-  return sanitizeString(noTags, maxLen);
+  return sanitizeString(cur, maxLen);
 }
 
 /**
