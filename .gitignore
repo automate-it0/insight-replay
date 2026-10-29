@@ -50,16 +50,15 @@ test
 prompt
 
 server.log
-# Skills directory
+# Local workflow scratch (not part of the app)
 /skills/
-# Agent skills (installed workflow pack)
 /.agent-skills/
 
 # Audit logs
 /logs/
 
-# --- P14-A: AI agent artifacts + build outputs (do NOT delete; gitignore only) ---
-# AI junk files (agent worklogs, tool outputs, context docs, agent tooling dirs)
+# --- Local tooling scratch + build outputs (do NOT delete; gitignore only) ---
+# Editor / local-tooling scratch files (not part of the app)
 worklog.md
 tool-results/
 AGENTS.md

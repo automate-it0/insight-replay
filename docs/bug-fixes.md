@@ -8,7 +8,7 @@
 
 | Metric                | Before | After |
 | --------------------- | ------ | ----- |
-| `tsc --noEmit` errors | 8      | 3 (all out-of-scope per task brief) |
+| `tsc --noEmit` errors | 8      | 3 (all out-of-scope, in vendored reference code) |
 | `tsc` errors in `src/`| 0      | 0     |
 | `bun run lint`        | clean  | clean |
 | `bun test tests/`     | 138 pass / 1 skip / 0 fail | 138 pass / 1 skip / 0 fail |
@@ -43,18 +43,16 @@ where `bun:test` is declared. The module resolution error in every test
 file disappears. No source code under `tests/` is touched; no `tsconfig`
 edit is required.
 
-### Errors ignored (3) — out of scope per task brief
+### Errors ignored (3) — out of scope
 
-The task brief explicitly says: *"some errors may be in `.agent-skills/`
-or `examples/` — ignore those (they're not our code)."* The remaining
-three errors live in `examples/` and `skills/` (the agent-skill packages
-shipped alongside the app, not application code under `src/`).
+The remaining three errors live in `examples/` and `skills/` (vendored reference
+packages shipped alongside the app, not application code under `src/`).
 
 | # | File                                              | Line | Error                                                            | Reason ignored                                                                                     |
 | - | ------------------------------------------------- | ---- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| 6 | `examples/websocket/server.ts`                    | 2,24 | `TS2307: Cannot find module 'socket.io'`                         | `examples/` directory — explicitly out of scope per task brief.                                    |
-| 7 | `skills/image-edit/scripts/image-edit.ts`         | 10,4 | `TS2561: 'images' does not exist in type 'CreateImageEditBody'` | `skills/` directory — vendored agent skill, not application code. (Same category as `.agent-skills/`.) |
-| 8 | `skills/stock-analysis-skill/src/analyzer.ts`     | 253,11 | `TS2322: content-array type not assignable to string`          | `skills/` directory — vendored agent skill, not application code.                                  |
+| 6 | `examples/websocket/server.ts`                    | 2,24 | `TS2307: Cannot find module 'socket.io'`                         | `examples/` directory — reference code, not application code.                                    |
+| 7 | `skills/image-edit/scripts/image-edit.ts`         | 10,4 | `TS2561: 'images' does not exist in type 'CreateImageEditBody'` | `skills/` directory — vendored reference package, not application code. |
+| 8 | `skills/stock-analysis-skill/src/analyzer.ts`     | 253,11 | `TS2322: content-array type not assignable to string`          | `skills/` directory — vendored reference package, not application code.                                  |
 
 These are documented in `CONSTRAINTS.md` as the "tsc errors (out-of-scope)"
 soft-constraint baseline; the prior plan to drive them to zero (exclude

@@ -7,11 +7,11 @@ performance-optimization pass live in [`docs/performance.md`](./performance.md)
 will (a) extend those measurements to steady-state scenarios the original
 pass didn't cover, and (b) establish regression baselines for CI.
 
-Every table below is marked **TBD — Pending Measurement** until a benchmarking
-sub-agent runs the harness described in "How these will be measured" and fills
-the cells in. Once a cell is filled, change its row's status from `DRAFT` to
+Every table below is marked **TBD — Pending Measurement** until the benchmark
+harness described in "How these will be measured" is run and the cells are
+filled in. Once a cell is filled, change its row's status from `DRAFT` to
 `MEASURED` and add a one-line note linking to the run that produced the number
-(commit SHA or worklog task ID).
+(commit SHA or task ID).
 
 > **Companion doc:** [`docs/performance.md`](./performance.md) holds the
 > narrative explanation of *what* was optimized and *why*, plus the

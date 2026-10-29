@@ -160,9 +160,9 @@ Source files read as evidence: `prisma/schema.prisma`, `next.config.ts`, `Caddyf
 
 ---
 
-## Decision 6: 6 parallel security agents editing different files
+## Decision 6: 6 parallel security work streams editing different files
 
-**CLAIM:** Six subagents each owned a disjoint security layer (auth, rate-limit, CORS+origin, IP anonymization, audit log, headers+sanitization). Parallelizable, no merge conflicts, defense-in-depth. (ADR-0004.)
+**CLAIM:** Six disjoint security layers were built in parallel (auth, rate-limit, CORS+origin, IP anonymization, audit log, headers+sanitization). Parallelizable, no merge conflicts, defense-in-depth. (ADR-0004.)
 
 **EXTRACT (this is the part that matters — what each layer *actually* does at runtime, not what the library *can* do):
 

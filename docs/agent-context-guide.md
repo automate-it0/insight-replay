@@ -1,16 +1,14 @@
-# Insight Replay — Agent Context Guide
+# Insight Replay — Contributor Context Guide
 
-This is the operating manual for **any AI agent (or human contributor)**
-working on Insight Replay. It tells you how to start a session, how to
-verify your work, what traps to avoid, and how to stay in your lane when
-multiple agents work in parallel.
+This is the operating manual for **any contributor** working on Insight Replay.
+It tells you how to start a session, how to verify your work, what traps to
+avoid, and how to stay in your lane when multiple people work in parallel.
 
 Read this **before** your first action. Pair it with:
 
 - [`AGENTS.md`](../AGENTS.md) — the engineering workflow + verification bar.
 - [`worklog.md`](../worklog.md) — every prior task's narrative.
 - [`context-map.md`](./context-map.md) — the project map (where things live).
-- [`.cursor/rules/`](../.cursor/rules/) — five IDE/agent rules scoped by glob.
 
 ---
 
@@ -18,28 +16,16 @@ Read this **before** your first action. Pair it with:
 
 ### 1.1 Read these first (in order)
 
-1. [`AGENTS.md`](../AGENTS.md) — the workflow. Defines the skill decision tree
-   (which skill applies to which task), the six core operating behaviors
+1. [`AGENTS.md`](../AGENTS.md) — the workflow. Defines the task decision tree
+   (which checklist applies to which task), the six core operating behaviors
    (surface assumptions, manage confusion, push back, enforce simplicity,
    maintain scope, verify don't assume), the project context, and the
    verification bar.
 2. [`worklog.md`](../worklog.md) — at minimum the last 3–5 entries. This tells
-   you what other agents are doing RIGHT NOW (parallel work) and what's
+   you what other contributors are doing RIGHT NOW (parallel work) and what's
    recently changed. The worklog is append-only; entries are separated by `---`.
 3. [`context-map.md`](./context-map.md) — the directory map + the 10 key files
    + the "if you're working on X, read these first" guide.
-4. The relevant [`.cursor/rules/*.mdc`](../.cursor/rules/) rule for your task's
-   file glob:
-   - Touching `src/**` or `prisma/**`? Read `project-overview.mdc`.
-   - Touching `src/app/api/**`? Read `api-conventions.mdc`.
-   - Touching `tests/**`? Read `testing-conventions.mdc`.
-   - Touching security-sensitive code or `middleware.ts`? Read `security.mdc`.
-   - Touching `src/components/**` or `src/app/**` (UI)? Read `frontend.mdc`.
-5. The relevant skill under [`skills/`](../skills/) per the AGENTS.md
-   decision tree (e.g. `skills/coding-agent/SKILL.md`,
-   `skills/task-review/SKILL.md`). The skills library lives at `skills/`,
-   NOT at `.agent-skills/skills/` despite some stale references in older
-   docs — use `ls skills/` to see the full list.
 
 ### 1.2 Sanity-check the environment
 
@@ -55,7 +41,7 @@ ls dev.log 2>/dev/null && tail -3 dev.log   # is the dev server already running?
 If `bun run lint` is not clean on a baseline checkout, **stop and report** —
 don't try to fix unrelated lint errors as a side-effect of your task
 (unless your task explicitly includes them). The worklog will tell you
-which agent owns the dirty file.
+who owns the dirty file.
 
 ### 1.3 Decide if you need the runtime up
 
@@ -206,8 +192,8 @@ project**. It's open (no API key), so it relies entirely on:
 
 ### 3.2 Don't remove security layers
 
-The 9 security controls in `.cursor/rules/security.mdc` are disjoint by
-design (ADR-0004). Defense-in-depth means each one catches a different
+The 9 security controls documented in ADR-0004 are disjoint by
+design. Defense-in-depth means each one catches a different
 class of attack. If you find yourself thinking "this sanitize step is
 redundant because the route already validates", **stop** — the sanitize
 step is the belt to the validator's suspenders. Both stay.
@@ -300,8 +286,8 @@ bug in a file outside your scope:
 1. **Don't fix it inline.** Note it in your worklog entry under "Blockers
    / observations".
 2. The next agent whose scope includes that file will pick it up.
-3. If the bug blocks your verification (e.g. a syntax error in another
-   agent's WIP is making the dev server 500 on every page), document it
+3. If the bug blocks your verification (e.g. a syntax error in someone
+   else's WIP is making the dev server 500 on every page), document it
    in detail in your worklog — file, line, the exact fix needed — but
    don't apply the fix.
 
@@ -309,22 +295,21 @@ bug in a file outside your scope:
 
 | Area                                      | Owned by                                |
 |-------------------------------------------|-----------------------------------------|
-| `src/components/app/recording-player.tsx` | code-simplification agent (per worklog) |
-| `src/components/app/live-tab.tsx`         | code-simplification agent               |
-| `src/components/app/use-tracker.ts`       | code-simplification agent               |
-| `src/components/app/page-mock.tsx`        | code-simplification agent               |
-| `src/components/app/filter-bar.tsx`       | accessibility agent (recently edited)   |
+| `src/components/app/recording-player.tsx` | simplification pass (per worklog)      |
+| `src/components/app/live-tab.tsx`         | simplification pass                     |
+| `src/components/app/use-tracker.ts`       | simplification pass                     |
+| `src/components/app/page-mock.tsx`        | simplification pass                     |
+| `src/components/app/filter-bar.tsx`       | accessibility pass (recently edited)    |
 | All other `src/components/app/*.tsx`      | open (check worklog for recent edits)   |
 | `src/lib/*`                               | open                                    |
-| `src/app/api/**`                          | open (api-and-interface-design agent owns migration) |
-| `src/middleware.ts`                       | security-and-hardening agent            |
-| `next.config.ts`                          | security-and-hardening agent            |
+| `src/app/api/**`                          | open (API migration tracked separately) |
+| `src/middleware.ts`                       | hardening pass                          |
+| `next.config.ts`                          | hardening pass                          |
 | `prisma/schema.prisma`                    | requires coordination (destructive `db push`) |
-| `tests/**`                                | test-driven-development agent           |
-| `docs/**`                                 | documentation agent / context-engineering agent |
-| `.cursor/rules/**`                        | context-engineering agent               |
-| `.github/workflows/**`                    | ci-cd-and-automation agent              |
-| `AGENTS.md`, `worklog.md`                 | append-only; any agent may append       |
+| `tests/**`                                | test pass                                |
+| `docs/**`                                 | documentation pass                      |
+| `.github/workflows/**`                    | CI pass                                 |
+| `AGENTS.md`, `worklog.md`                 | append-only; anyone may append          |
 
 When in doubt, **grep the worklog** for the filename before editing it.
 
@@ -338,13 +323,13 @@ When in doubt, **grep the worklog** for the filename before editing it.
 ### 4.4 Coordinating destructive operations
 
 - `bun run db:push` is destructive (`--accept-data-loss` is baked into
-  the script). Don't run it unless you've checked that no other agent is
+  the script). Don't run it unless you've checked that nobody else is
   mid-query. If you must change the schema, announce it in your worklog
   entry **before** running the command.
 - `bun run db:reset` wipes everything. Don't run it without explicit
   user permission.
 - Deleting a file is rarely the right move. If a file is unused, mark it
-  deprecated in a comment and leave it for the next agent to remove
+  deprecated in a comment and leave it for the next contributor to remove
   after confirming no caller relies on it.
 
 ### 4.5 Communication via worklog
@@ -354,11 +339,11 @@ When you finish a session, your worklog entry should answer:
 1. What did you change? (files + counts)
 2. Why? (one paragraph of motivation)
 3. What did you consider but reject? (Chesterton's fence)
-4. What blockers did you hit? (other agents' WIP, missing runtime, etc.)
-5. What's left for the next agent? (deferred fixes, follow-up tasks)
+4. What blockers did you hit? (others' WIP, missing runtime, etc.)
+5. What's left for the next contributor? (deferred fixes, follow-up tasks)
 
-If every agent does this, the worklog becomes a coordination channel:
-the next agent reads your entry, knows what's safe to touch, and knows
+If everyone does this, the worklog becomes a coordination channel:
+the next contributor reads your entry, knows what's safe to touch, and knows
 what to defer.
 
 ---
@@ -366,17 +351,16 @@ what to defer.
 ## 5. Quick reference — the 30-second version
 
 ```
-START:  read AGENTS.md → worklog.md (last 5) → context-map.md → relevant .cursor/rules/*.mdc
-        + relevant skills/<name>/SKILL.md per AGENTS.md decision tree.
+START:  read AGENTS.md → worklog.md (last 5) → context-map.md.
 
 CODE:   use apiSuccess/apiError/paginated. Validate with src/lib/validate.ts.
         Sanitize at the edge. Anonymize before persist. Audit-log mutations.
         Use shadcn/ui + Tailwind tokens. WCAG 2.1 AA floor. Zustand for state.
 
 VERIFY: bun run lint (exit 0) → bunx tsc --noEmit → bun test tests/ →
-        bun run dev (compiles) → curl the endpoint → agent-browser the page.
+        bun run dev (compiles) → curl the endpoint → verify the page in a browser.
 
-LOG:    append a worklog.md entry (Task ID, Agent, Task, Work Log, Stage Summary).
+LOG:    append a worklog.md entry (Task ID, Task, Work Log, Stage Summary).
         Note Chesterton's-fence decisions and blockers.
 
 DON'T:  break ingest. Remove security layers. Change API shapes without a

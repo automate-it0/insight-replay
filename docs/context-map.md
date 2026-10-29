@@ -1,17 +1,16 @@
 # Insight Replay — Context Map
 
-This is the project map for **context engineering**: it tells any agent
-(or human) where things live, which files matter most, which files to touch
+This is the project map for **context engineering**: it tells any contributor
+where things live, which files matter most, which files to touch
 for common tasks, how modules depend on each other, and which docs to read
 before working on a given area. It is the index over everything else.
 
 Companion docs:
 - [`architecture.md`](./architecture.md) — runtime topology + data flow.
 - [`api-style-guide.md`](./api-style-guide.md) — HTTP API contract.
-- [`agent-context-guide.md`](./agent-context-guide.md) — how to operate
-  as an agent on this repo.
+- [`agent-context-guide.md`](./agent-context-guide.md) — how to ramp up
+  on this repo.
 - [`../AGENTS.md`](../AGENTS.md) — engineering workflow + verification bar.
-- [`../.cursor/rules/`](../.cursor/rules/) — five IDE/agent rules.
 
 ---
 
@@ -29,14 +28,6 @@ my-project/
 ├── postcss.config.mjs              # @tailwindcss/postcss.
 ├── components.json                 # shadcn/ui config (style: default, baseColor: slate).
 ├── Caddyfile                       # Gateway on :81; @transform_port_query routes ?XTransformPort=*
-│
-├── .cursor/rules/                  # ← IDE / agent rules (this task's output)
-│   ├── project-overview.mdc        #     Project context (src/**, prisma/**)
-│   ├── api-conventions.mdc         #     API conventions (src/app/api/**)
-│   ├── testing-conventions.mdc     #     Test conventions (tests/**)
-│   ├── security.mdc                #     Security hardening (src/**, middleware.ts)
-│   └── frontend.mdc                #     Frontend rules (src/components/**, src/app/**)
-│
 ├── prisma/
 │   └── schema.prisma               # 16 models: Project, Session, Event, Insight, ErrorEvent,
 │                                   #   Funnel, Goal, Segment, Note, Tag, Bookmark, Alert,
@@ -116,20 +107,20 @@ my-project/
 │   ├── architecture.md             # Process topology + data/realtime/AI flow diagrams.
 │   ├── api-reference.md            # Every HTTP route with method, path, auth, body, response, curl.
 │   ├── api-style-guide.md          # Authoritative API contract + error catalog + migration plan.
-│   ├── accessibility-audit.md      # WCAG 2.1 AA audit + fixes (frontend-ui-engineering skill).
-│   ├── code-review.md              # Five-axis code review of frontend tabs + ingest (code-review skill).
-│   ├── performance.md              # TTL cache + memoisation (performance-optimization skill).
+│   ├── accessibility-audit.md      # WCAG 2.1 AA audit + fixes.
+│   ├── code-review.md              # Five-axis code review of frontend tabs + ingest.
+│   ├── performance.md              # TTL cache + memoisation report.
 │   ├── simplification.md           # recording-player + live-tab extraction report.
-│   ├── ci-cd.md                    # GitHub Actions pipeline (ci-cd-and-automation skill).
+│   ├── ci-cd.md                    # GitHub Actions pipeline.
 │   ├── context-map.md              # ← This file.
-│   ├── agent-context-guide.md      # How to operate as an agent on this repo.
+│   ├── agent-context-guide.md      # Onboarding guide: how to ramp up on this repo.
 │   └── adr/
 │       ├── 0001-use-prisma-sqlite-over-postgres.md
 │       ├── 0002-socketio-mini-service-for-realtime.md
 │       ├── 0003-llm-powered-ai-features.md
 │       ├── 0004-security-hardening-layers.md
 │       ├── 0005-in-memory-cache-for-stats.md
-│       └── 0006-agent-skills-unified-workflow.md
+│       └── 0006-unified-engineering-workflow.md
 │
 ├── scripts/
 │   └── check-quality.sh            # Local CI runner (lint + typecheck + test + build).
@@ -139,11 +130,11 @@ my-project/
 │   ├── app.jsonl                   # Structured app logs (observability.ts).
 │   ├── audit.jsonl                 # Audit entries (audit.ts).
 │   └── dev.log                     # Next.js dev server stdout (tee'd by `bun run dev`).
-├── tool-results/                   # Cached tool outputs from prior agent runs (scratch).
+├── tool-results/                   # Scratch space for tool outputs (not committed).
 ├── download/                       # Misc scratch (README only).
 ├── examples/
 │   └── websocket/                  # Reference WS server + client (not used in production).
-└── shot-*.png                      # Screenshot artifacts from prior agent-browser runs.
+└── shot-*.png                      # Screenshot artifacts from browser verification runs.
 ```
 
 ---
@@ -154,7 +145,7 @@ If you read only ten files to understand the project, read these:
 
 | # | File                                   | Why it matters                                                                                              |
 |---|----------------------------------------|-------------------------------------------------------------------------------------------------------------|
-| 1 | `AGENTS.md`                            | The engineering workflow. Defines the skill decision tree, the six core operating behaviors, the verification bar. Start here. |
+| 1 | `AGENTS.md`                            | The engineering workflow. Defines the task decision tree, the six core operating behaviors, the verification bar. Start here. |
 | 2 | `docs/architecture.md`                 | The runtime topology: which processes run, on which ports, how requests flow, how data is persisted.       |
 | 3 | `prisma/schema.prisma`                 | The data model. 16 models; cascade-delete rules; the indexes that drive query performance.                 |
 | 4 | `src/app/api/track/events/route.ts`    | The ingest endpoint. The most security-sensitive route: origin validation, CORS, sanitization handoff, audit logging. Pattern to mirror for any new open endpoint. |
@@ -204,7 +195,6 @@ If you read only ten files to understand the project, read these:
    - Response headers → `next.config.ts` `headers()`.
 3. Add unit tests under `tests/<control>.test.ts`.
 4. Update [`docs/adr/0004-security-hardening-layers.md`](./adr/0004-security-hardening-layers.md) — bump the layer count, explain the new control, justify why it's disjoint.
-5. Update `.cursor/rules/security.mdc` — add the new control to the table.
 
 ### Add a new AI feature
 
@@ -358,15 +348,13 @@ dashboard LiveTab (browser)
 4. `src/lib/ua.ts` — `anonymizeIP`, `fakeGeo`, `parseUA`.
 5. `src/middleware.ts` — edge rate-limit.
 6. [`docs/adr/0004-security-hardening-layers.md`](./adr/0004-security-hardening-layers.md).
-7. `.cursor/rules/security.mdc`.
 
 ### API response shape / error handling
 
 1. `src/lib/api-response.ts` — the helpers + types.
 2. `src/lib/validate.ts` — input validation.
 3. [`docs/api-style-guide.md`](./api-style-guide.md) — the authoritative contract.
-4. `.cursor/rules/api-conventions.mdc`.
-5. `tests/api-contracts.test.ts` — existing contract tests to mirror.
+4. `tests/api-contracts.test.ts` — existing contract tests to mirror.
 
 ### A dashboard tab (UI behaviour)
 
@@ -377,7 +365,6 @@ dashboard LiveTab (browser)
 5. `src/components/app/filter-bar.tsx` — if the tab is filterable.
 6. The matching API route under `src/app/api/projects/[id]/<resource>/`.
 7. [`docs/accessibility-audit.md`](./accessibility-audit.md) — WCAG 2.1 AA requirements.
-8. `.cursor/rules/frontend.mdc`.
 
 ### Realtime / live cursors
 
@@ -397,7 +384,6 @@ dashboard LiveTab (browser)
 4. `src/app/api/track/events/route.ts` (origin/CORS pattern).
 5. `src/app/api/projects/[id]/protected-test/route.ts` (API-key pattern).
 6. [`docs/adr/0004-security-hardening-layers.md`](./adr/0004-security-hardening-layers.md).
-7. `.cursor/rules/security.mdc`.
 
 ### Data model / Prisma
 
@@ -420,8 +406,7 @@ dashboard LiveTab (browser)
 1. `tests/api-contracts.test.ts` — integration pattern (`test.skipIf(!serverAvailable)`).
 2. `tests/ua.test.ts`, `tests/sanitize.test.ts`, `tests/rate-limit.test.ts`,
    `tests/observability.test.ts` — unit-test patterns.
-3. `.cursor/rules/testing-conventions.mdc`.
-4. [`AGENTS.md`](../AGENTS.md) — the verification bar.
+3. [`AGENTS.md`](../AGENTS.md) — the verification bar.
 
 ### CI / build / deploy
 

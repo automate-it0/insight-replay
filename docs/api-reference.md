@@ -1197,8 +1197,7 @@ module that backs it (no hard-coded "we're secure, trust me" claims).
 
 ## Observability
 
-These were added by the `observability-and-instrumentation` skill (see worklog Task
-`agent-skills-workflow`). The middleware stamps `x-request-id` on all API routes and
+The middleware stamps `x-request-id` on all API routes and
 records edge metrics for 429s.
 
 ### `GET /api/health`

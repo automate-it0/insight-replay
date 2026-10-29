@@ -158,7 +158,7 @@ during an incident.
 | # | Item | Owner | How to verify | Status |
 |---|------|-------|---------------|--------|
 | 7.1 | API reference updated | Docs | `docs/api-reference.md` lists every route under `src/app/api/`. `rg "export async function (GET\|POST\|PUT\|PATCH\|DELETE)" src/app/api/` count matches the doc's route count. | ☐ PASS |
-| 7.2 | ADRs current | Docs | `docs/adr/` — every decision that shipped has an ADR. Specifically: 0001 (Prisma+SQLite), 0002 (socket.io), 0003 (LLM), 0004 (security), 0005 (cache), 0006 (agent-skills). | ☐ PASS |
+| 7.2 | ADRs current | Docs | `docs/adr/` — every decision that shipped has an ADR. Specifically: 0001 (Prisma+SQLite), 0002 (socket.io), 0003 (LLM), 0004 (security), 0005 (cache), 0006 (engineering workflow). | ☐ PASS |
 | 7.3 | Runbook exists | Docs | Either this checklist + `docs/rollback-plan.md` together serve as the runbook, or a separate `docs/runbook.md` exists. Either way, an on-call engineer can answer "what do I do if X breaks?" without reading source. | ☐ PASS |
 | 7.4 | Architecture diagram current | Docs | `docs/architecture.md` describes the two-process topology (Next.js + live-service), the Caddy gateway, and the data flow. Spot-check that the port numbers match the actual deployment. | ☐ PASS |
 | 7.5 | Feature flags documented | Docs | This file + `docs/rollback-plan.md` together list every `FF_*` env var and the scenario where you'd flip it. | ☐ PASS |

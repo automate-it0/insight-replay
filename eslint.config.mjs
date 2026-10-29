@@ -119,7 +119,7 @@ const eslintConfig = [
   // this entry, ESLint and Prettier would fight over spacing/quotes/semis.
   prettierConfig,
   {
-    ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills", ".agent-skills/**"],
+    ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**"],
   },
 ];
 

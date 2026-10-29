@@ -28,12 +28,12 @@ Forces:
   full IPs, even if the upstream proxy sends them.
 - **Operability.** The hardening must not break the demo. The dashboard must still
   render, the SDK must still ingest, the live cursors must still stream.
-- **Parallelisability.** Six subagents were assigned to harden the app simultaneously.
+- **Parallelisability.** Six hardening tasks were run simultaneously.
   Each layer had to be implementable in isolation, without touching the others' files.
 
 ## Decision
-Implement **six parallel security layers**, each owned by a separate subagent and each
-shipped as a discrete set of files. The layers are:
+Implement **six parallel security layers**, each shipped as a discrete set of
+files by a dedicated hardening task. The layers are:
 
 | # | Layer | Files | What it does |
 |---|-------|-------|--------------|
@@ -91,8 +91,8 @@ Text-diagram of the layers in request order:
   DB resets).
 - **Demo stays functional.** Dev mode (`NODE_ENV !== 'production'`) short-circuits the
   origin check to `true`, so local testing is frictionless.
-- **Subagent parallelisability.** Each layer shipped in isolation with no merge
-  conflicts. The six subagents touched disjoint file sets.
+- **Parallelisability.** Each layer shipped in isolation with no merge
+  conflicts. The six hardening tasks touched disjoint file sets.
 - **Future-proofed.** `API_LIMIT` is exported but not yet wired into dashboard routes;
   `retentionCutoff(days)` is exported but not yet scheduled; audit log readers are open
   but can be gated behind admin auth later.

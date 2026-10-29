@@ -109,7 +109,7 @@ defense layers below are live in `src/lib/` and `src/middleware.ts`.
 - **Test-driven development**: 138 passing tests across 5 files (`tests/ua.test.ts`, `tests/sanitize.test.ts`, `tests/rate-limit.test.ts`, `tests/observability.test.ts`, `tests/api-contracts.test.ts`) — 220 `expect()` calls. The 9 API-contract tests auto-skip when the dev server is unreachable so CI stays green.
 - **Code-review pass**: dead code removed, defensive guards added on hot paths, error-handling consistency sweep. Report at `docs/code-review.md`.
 - **Performance optimization**: in-memory TTL cache (`src/lib/cache.ts`) on the stats API (~22× speedup on cache hit, ~87.5% DB-load reduction steady-state at 8 s polling / 60 s TTL), 10 `useMemo` calls on the Overview tab, `React.memo` on `WidgetRenderer` + memoized widget grid on the Dashboards tab. Report at `docs/performance.md`.
-- **Documentation + ADRs**: 6 ADRs under `docs/adr/` (Prisma+SQLite, socket.io mini-service, LLM-powered AI features, security-hardening layers, in-memory cache for stats, agent-skills unified workflow), `docs/architecture.md`, `docs/api-reference.md`, `docs/README.md`.
+- **Documentation + ADRs**: 6 ADRs under `docs/adr/` (Prisma+SQLite, socket.io mini-service, LLM-powered AI features, security-hardening layers, in-memory cache for stats, unified engineering workflow), `docs/architecture.md`, `docs/api-reference.md`, `docs/README.md`.
 
 ### Changed
 - Stats API response now includes `cached` and `cachedAt` fields (additive — frontend unchanged).
@@ -120,8 +120,8 @@ defense layers below are live in `src/lib/` and `src/middleware.ts`.
 ## [0.4.0] — 2025-10-24
 
 ### Added
-- **agent-skills workflow**: cloned addyosmani/agent-skills (25 skills) into `.agent-skills/`; `AGENTS.md` maps every task type to a skill and sets the verification bar (`bun run lint` exit 0, dev compiles, agent-browser verification for UI, curl for API, no console errors).
-- **Observability skill applied**:
+- **Engineering workflow**: documented the repo-level workflow and verification bar (`bun run lint` exit 0, dev compiles, browser verification for UI, curl for API, no console errors) — see ADR-0006.
+- **Observability instrumentation**:
   - `src/lib/observability.ts` — structured JSONL logger (`logs/app.jsonl`), in-memory RED metrics (counters + histograms with bucket labels), correlation IDs, health checks (database, log_writable, memory), log reader.
   - `/api/observability` endpoint — status + uptime + health + metrics + recent logs.
   - `/api/health` endpoint — 200 ok / 503 degraded-down (for load balancers).
@@ -129,7 +129,7 @@ defense layers below are live in `src/lib/` and `src/middleware.ts`.
   - `/api/track/events` POST instrumented with structured logs (`ingest_success` / `unknown_project` / `origin_blocked` / `error`) + `recordHttpRequest` on every path.
 
 ### Changed
-- All future work now follows the skill lifecycle: define → plan → build → verify → review → ship. `.agent-skills/` and `logs/` are gitignored.
+- All future work now follows the lifecycle: define → plan → build → verify → review → ship. `logs/` is gitignored.
 
 ---
 
@@ -155,7 +155,7 @@ defense layers below are live in `src/lib/` and `src/middleware.ts`.
 ## [0.2.0] — 2025-10-24
 
 ### Added
-- **10× stronger features** (schema expansion + parallel sub-agents):
+- **10× stronger features** (schema expansion + parallel work streams):
   - Schema: `Funnel`, `Goal`, `Segment`, `Note`, `Tag`, `Bookmark`, `ErrorEvent` models; `Session` gained `utmSource/Medium/Campaign`, `entryUrl`, `exitUrl`, `isNewVisitor`, `hasError`, `convertedGoal`; indexes on `visitorId`, `isNewVisitor`, `ErrorEvent`, `Note/Tag/Bookmark`.
   - **Funnels**: builder + funnel-viz + dropoff; `/api/projects/[id]/funnels` CRUD + `/analyze` (single efficient event query + JS grouping + sequential URL matching + median time between steps).
   - **Journeys**: Sankey-style flow + top paths + entry/exit; `/api/projects/[id]/journeys` (Sankey-ready JSON with virtual Start/Exit nodes).

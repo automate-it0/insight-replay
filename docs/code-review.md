@@ -73,7 +73,7 @@ The following require larger refactors or are owned by other agents:
 
 2. **`recording-player.tsx` O(N) project scan** — Opening a recording triggers a request to `/api/projects`, then loops through every project trying `/api/projects/{pid}/sessions/{sid}` until one succeeds. With many projects this is wasteful. Fix: add a `GET /api/sessions/{sid}` endpoint that resolves the project server-side.
 
-3. **`track.ts` silent error swallowing** — `db.insight.create().catch(() => null)` and `db.errorEvent.create().catch(() => null)` swallow all errors. Useful for not failing the ingest on a single bad insert, but should at minimum log to observability. Coordinate with observability agent.
+3. **`track.ts` silent error swallowing** — `db.insight.create().catch(() => null)` and `db.errorEvent.create().catch(() => null)` swallow all errors. Useful for not failing the ingest on a single bad insert, but should at minimum log to observability. Coordinate with whoever owns the observability surface.
 
 4. **`track.ts` cross-payload rage-click detection** — Current detection only looks at 3 consecutive clicks within a single ingest payload. If clicks span multiple payloads (common with batched tracking), rage clicks will be missed. Would need a session-wide sliding window query.
 
@@ -81,11 +81,10 @@ The following require larger refactors or are owned by other agents:
 
 ## What Was NOT Changed
 
-Per task boundaries, these files were left untouched (other agents own them):
-- `src/app/api/projects/[id]/stats/route.ts` (performance agent)
-- `src/components/app/overview-tab.tsx` (performance agent)
-- `src/components/app/dashboards-tab.tsx` (performance agent)
-- `src/lib/cache.ts` (performance agent — creating)
-- `tests/**` (TDD agent)
-- `docs/adr/**` and other `docs/` files (ADRs agent)
-- `.agent-skills/**`
+Per task boundaries, these files were left untouched (parallel work streams own them):
+- `src/app/api/projects/[id]/stats/route.ts` (performance pass)
+- `src/components/app/overview-tab.tsx` (performance pass)
+- `src/components/app/dashboards-tab.tsx` (performance pass)
+- `src/lib/cache.ts` (performance pass — creating)
+- `tests/**` (test pass)
+- `docs/adr/**` and other `docs/` files (documentation pass)

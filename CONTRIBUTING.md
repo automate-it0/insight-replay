@@ -53,7 +53,7 @@ required to start the demo.
 - **Engines**: `node >= 20.0.0`, `bun >= 1.3.0` (see `package.json#engines`).
 
 For the full architecture map see [`docs/architecture.md`](./docs/architecture.md);
-for the agent-skills workflow that governs every change see [`AGENTS.md`](./AGENTS.md).
+for the engineering workflow that governs every change see [`AGENTS.md`](./AGENTS.md).
 
 ---
 
@@ -176,7 +176,7 @@ If all three pass, you're ready to open a PR. If any one fails, see
 
 Two files that govern behavior, not code:
 
-- **[`AGENTS.md`](./AGENTS.md)** — agent-skills routing guide. Maps each task to one of the 25 skills under `.agent-skills/`. Read it before you start work.
+- **[`AGENTS.md`](./AGENTS.md)** — the engineering workflow guide. Read it before you start work.
 - **[`CONSTRAINTS.md`](./CONSTRAINTS.md)** — the invariants the project refuses to violate (security posture, self-hosted deployability, …). A PR that violates a constraint is rejected on the spot.
 
 ---
@@ -426,8 +426,7 @@ go through the same PR flow on a `fix/` branch with priority review.
 
 ## 11. Code-review expectations
 
-The full review process lives in [`docs/code-review.md`](./docs/code-review.md)
-and the `.agent-skills/skills/code-review-and-quality/SKILL.md` skill.
+The full review process lives in [`docs/code-review.md`](./docs/code-review.md).
 The short version: every review goes through **five axes** — correctness,
 security, performance, maintainability, tests.
 
@@ -464,8 +463,8 @@ choice of realtime transport, choice of authentication scheme — belong
 in an Architecture Decision Record (ADR). Six already exist under
 [`docs/adr/`](./docs/adr): `0001` (Prisma+SQLite), `0002` (socket.io
 mini-service), `0003` (LLM-powered AI features), `0004` (security-
-hardening layers), `0005` (in-memory cache for stats), `0006` (agent-
-skills unified workflow).
+hardening layers), `0005` (in-memory cache for stats), `0006` (unified
+engineering workflow).
 
 ### When to write an ADR
 
@@ -473,7 +472,7 @@ Write one when **any** of these are true:
 
 - The decision is **expensive to reverse** (changing it later would touch more than one subsystem).
 - The decision has **more than one reasonable option** and you're picking one over another (e.g. SQLite vs Postgres).
-- The decision creates a **new convention** future contributors are expected to follow (e.g. ADR-0006 establishes the agent-skills workflow), OR a reviewer asks "why this way?" and the answer is longer than a paragraph.
+- The decision creates a **new convention** future contributors are expected to follow (e.g. ADR-0006 establishes the engineering workflow), OR a reviewer asks "why this way?" and the answer is longer than a paragraph.
 
 You **don't** need an ADR for: bug fixes, feature additions, refactors,
 dependency bumps, lint rule tweaks. If in doubt, ask in the PR.
@@ -532,7 +531,7 @@ versioning + changelog policy.
 ## 14. Getting help
 
 - **[`docs/`](./docs)** — the full doc index. Start at [`docs/README.md`](./docs/README.md).
-- **[`AGENTS.md`](./AGENTS.md)** — agent-skills routing guide; tells you which of the 25 skills applies to your task.
+- **[`AGENTS.md`](./AGENTS.md)** — the engineering workflow guide; tells you which checklist applies to your task.
 - **[`CONSTRAINTS.md`](./CONSTRAINTS.md)** — the invariants the project refuses to violate.
 - **[`.github/ISSUE_TEMPLATE/`](./.github/ISSUE_TEMPLATE)** — `bug_report.md` and `feature_request.md`. Use them when opening issues.
 - **GitHub Discussions** — for design questions that don't belong in an issue yet.

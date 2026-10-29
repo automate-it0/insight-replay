@@ -24,14 +24,14 @@ when a decision is superseded, a new ADR is written that references the old one.
 | [0003](./adr/0003-llm-powered-ai-features.md) | LLM-Powered AI Features via z-ai-web-dev-sdk | Backend-only constraint, lazy import, 200-on-error contract, structured prompts. |
 | [0004](./adr/0004-security-hardening-layers.md) | Security Hardening via 6 Parallel Layers | API key auth, rate limit, CORS+origin, IP anon, audit log, headers+sanitize. |
 | [0005](./adr/0005-in-memory-cache-for-stats.md) | In-Memory TTL Cache for Stats Aggregations | 60s TTL, globalThis persistence, 8s polling cadence, alternatives (Redis, HTTP cache). |
-| [0006](./adr/0006-agent-skills-unified-workflow.md) | Adopt addyosmani/agent-skills as Unified Workflow | AGENTS.md as the entry point; skill lifecycle; verification bar. |
+| [0006](./adr/0006-unified-engineering-workflow.md) | Unified Engineering Workflow | Repo-level workflow: task-type decision tree, uniform verification bar, checklists. |
 
 ## Project-level references
 
 | File | What it covers |
 |------|----------------|
 | [`../AGENTS.md`](../AGENTS.md) | The engineering workflow that governs every change. Decision tree mapping tasks to skills, six core operating behaviors, project context, verification bar. |
-| [`../worklog.md`](../worklog.md) | Chronological history of every task and subagent. Append-only; each entry has Task ID, Agent, Task, Work Log, Stage Summary. |
+| [`../worklog.md`](../worklog.md) | Chronological history of every task. Append-only; each entry has Task ID, Task, Work Log, Stage Summary. |
 | [`../prisma/schema.prisma`](../prisma/schema.prisma) | The full data model — 16 Prisma models (Project, Session, Event, Insight, ErrorEvent, Funnel, Goal, Segment, Note, Tag, Bookmark, Alert, AlertHistory, Dashboard, Experiment, Annotation, ApiKey). |
 | [`../Caddyfile`](../Caddyfile) | Gateway config — `:81` listener with `@transform_port_query` matcher routing `?XTransformPort=<port>` to non-3000 services. |
 | [`../next.config.ts`](../next.config.ts) | Next.js config — standalone output, 6 security headers applied to `/(.*)`, `typescript.ignoreBuildErrors: true`. |
@@ -46,11 +46,11 @@ when a decision is superseded, a new ADR is written that references the old one.
    from the route files).
 3. **Wondering why a decision was made?** Check the ADRs above. If a decision isn't
    documented, write a new ADR (use `0001` as the template).
-4. **Doing security / performance / testing work?** Apply the relevant skill from
-   `.agent-skills/skills/` per the [AGENTS.md](../AGENTS.md) decision tree, then
+4. **Doing security / performance / testing work?** Read the relevant guide
+   (`security-audit.md`, `performance.md`, the tests under `tests/`), then
    follow the verification bar.
-5. **Curious what previous agents did?** Read [worklog.md](../worklog.md) — every task
-   appends an entry with Task ID, Agent, Task, Work Log, Stage Summary.
+5. **Curious what changed recently?** Read [worklog.md](../worklog.md) — every task
+   appends an entry with Task ID, Task, Work Log, Stage Summary.
 
 ## Conventions for new docs
 

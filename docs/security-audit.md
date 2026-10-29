@@ -1,11 +1,11 @@
 # Security Audit — OWASP Top 10 (2021)
 
 **Scope:** Insight Replay — full codebase (Next.js 16 App Router + Prisma + SQLite + TypeScript + Socket.io mini-service + z-ai-web-dev-sdk).
-**Auditor:** security-and-hardening sub-agent (Task ID 10).
+**Auditor:** security review (Task ID 10).
 **Standard:** OWASP Top 10 — https://owasp.org/Top10/ (2021 edition).
 **Method:** Static review of `src/lib/`, `src/app/api/`, `src/middleware.ts`, `next.config.ts`, `prisma/schema.prisma`, `package.json`, `.github/workflows/security.yml`. Dynamic verification via `grep` for sink patterns (`auditLog`, `validateApiKey`, `String(e)`, `fetch(`, `$queryRaw`, `process.env.`). No source files modified — this is an audit + helper task.
 
-> **Note on skill paths.** The task brief referenced `.agent-skills/skills/security-and-hardening/SKILL.md` and `.agent-skills/references/security-checklist.md`; neither exists on this checkout (`.agent-skills/` is absent). The audit was performed against OWASP Top 10 (2021) directly, cross-referenced with the project's own ADR-0004 ("Security Hardening via 6 Parallel Layers") which documents the security design intent.
+> **Method note.** The audit was performed against OWASP Top 10 (2021) directly, cross-referenced with the project's own ADR-0004 ("Security Hardening via 6 Parallel Layers") which documents the security design intent.
 
 ---
 

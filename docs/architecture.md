@@ -269,7 +269,7 @@ copy. See ADR-0003.
 
 ## Security layers
 
-Six parallel layers, each owned by a separate subagent and shipped as disjoint files.
+Six parallel layers, each shipped as disjoint files by a dedicated hardening task.
 See ADR-0004 for the full rationale.
 
 ```
@@ -348,9 +348,9 @@ under `src/components/app/`. One-line description of each:
 | 15| Errors        | `errors-tab.tsx`    | JS error chart + by-page breakdown + error log with session link. |
 | 16| Settings      | `settings-tab.tsx`  | Tracking snippet with copy button + delete project + UTM builder + API keys management (create / reveal-once / masked list / revoke). |
 
-(The "15 tabs" count comes from the AGENTS.md project context; the file tree shows 16
-tab components because the Recording Player is a modal launched from Recordings, not a
-tab in the sidebar.)
+(The sidebar lists 15 tabs; the file tree shows 16 tab components because the
+Recording Player is a modal launched from Recordings, not a tab in the
+sidebar.)
 
 ## Persistence layout
 
@@ -358,7 +358,7 @@ tab in the sidebar.)
 |-----------------------|--------------------------------------------------------------|--------------|
 | `db/custom.db`        | SQLite file — all Prisma tables (Project, Session, Event, …) | single file copy |
 | `logs/audit.jsonl`    | Audit log entries (Layer 5) — decoupled from DB             | single file copy |
-| `logs/app.jsonl`      | Structured app logs (observability skill)                    | single file copy |
+| `logs/app.jsonl`      | Structured app logs (`src/lib/observability.ts`)              | single file copy |
 | `logs/dev.log`        | Next.js dev server stdout (tee'd by `bun run dev`)           | rotate / truncate |
 
 All three log files are created at runtime (the `logs/` directory does not exist in
@@ -374,7 +374,7 @@ the repo). The audit logger creates the directory lazily via `mkdir({recursive:t
 | `bun run dev`                            | Start Next.js on :3000 (hot reload via `--hot`) |
 | `bun mini-services/live-service/index.ts`| Start the Socket.io service on :3004 |
 | `caddy run --config Caddyfile`           | Start the gateway on :81 |
-| `bun run lint`                           | ESLint (must exit 0 per AGENTS.md verification bar) |
+| `bun run lint`                           | ESLint (must exit 0 — enforced in CI) |
 | `bun run build`                          | Next.js standalone build (output to `.next/standalone/`) |
 | `bun run start`                          | Run the standalone production build (NODE_ENV=production) |
 | `curl -X POST localhost:3000/api/seed`   | Generate demo data (project + 80 sessions + funnels/goals/segments/alerts/dashboards/experiment/annotations) |
@@ -391,5 +391,5 @@ A reviewer's minimum-viable demo loop:
 
 - [ADRs](./adr/) — the *why* behind each major decision.
 - [API reference](./api-reference.md) — the *what* of every HTTP endpoint.
-- [`AGENTS.md`](../AGENTS.md) — the engineering workflow that governs all changes.
-- [`worklog.md`](../worklog.md) — chronological history of every task and subagent.
+- [CONTRIBUTING.md](../CONTRIBUTING.md) — the engineering workflow that governs all changes.
+- [worklog.md](../worklog.md) — chronological history of every task.

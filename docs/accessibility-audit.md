@@ -1,7 +1,7 @@
 # Accessibility Audit — WCAG 2.1 AA
 
 **Scope:** Insight Replay dashboard UI (Next.js 16 + TypeScript + Tailwind + shadcn/ui).
-**Auditor:** frontend-ui-engineering sub-agent (Task ID 1 — Accessibility).
+**Auditor:** frontend accessibility review (Task ID 1 — Accessibility).
 **Standard:** WCAG 2.1 AA (https://www.w3.org/TR/WCAG21/)
 **Release status:** shipped in **v0.6.0** (2025-10-24) — see
 [`CHANGELOG.md`](../CHANGELOG.md) § `[0.6.0]` → *Added* → *Accessibility
@@ -14,7 +14,7 @@ table below maps to a fix counted by the v0.6.0 release.
 - **Files audited:** 23 in-scope source files (1 root layout, 1 page wrapper, 21 components under `src/components/app/`).
 - **Issues identified:** 67 individual WCAG 2.1 AA violations.
 - **Issues fixed:** 63.
-- **Issues deferred:** 4 (owned by parallel agents — see "Deferred" below).
+- **Issues deferred:** 4 (owned by parallel work streams — see "Deferred" below).
 - **Verification:** `bun run lint` clean (0 errors), `bun test tests/` 138 pass / 1 skip / 0 fail, dev server compiles, agent-browser accessibility snapshot confirms landmarks / roles / labels are present on every audited tab.
 
 The fixes are surgical and additive — no layouts were refactored, no business logic was touched. Every interactive element remains keyboard-reachable, every icon-only button now has a programmatic accessible name, every form input is associated with its label, every landmark region is named, and every dynamic region announces itself to assistive technology.
@@ -103,27 +103,27 @@ The fixes are surgical and additive — no layouts were refactored, no business 
 | `src/components/app/insights-tab.tsx` | Insight row buttons had visible text but no summarizing accessible name. | 4.1.2 Name, Role, Value (minor) | **Deferred** — visible text is sufficient for AT (label, URL, time, location, severity). The row is already a `<button>` so it's keyboard reachable. |
 | `src/components/app/errors-tab.tsx` | Error rows are static `<div>`s — not interactive, no role needed. | — | No change needed. |
 | `src/components/app/journeys-tab.tsx` | Sankey flow is static SVG — no role needed (would benefit from a description, low priority). | 1.1.1 Non-text Content (minor) | **Deferred** — would require diagram description text, not blocking AA. |
-| `src/components/app/recording-player.tsx` | Owned by code-simplification agent. | — | **Deferred** — see below. |
-| `src/components/app/live-tab.tsx` | Owned by code-simplification agent. Live cursors should use `aria-hidden="true"` (decorative) — verify in their pass. | — | **Deferred** — see below. |
+| `src/components/app/recording-player.tsx` | In scope for the parallel simplification pass. | — | **Deferred** — see below. |
+| `src/components/app/live-tab.tsx` | In scope for the parallel simplification pass. Live cursors should use `aria-hidden="true"` (decorative) — verify in that pass. | — | **Deferred** — see below. |
 
 ## Deferred issues
 
-These issues are in files owned by parallel agents and were intentionally not modified to avoid merge conflicts:
+These issues are in files owned by parallel work streams and were intentionally not modified to avoid merge conflicts:
 
-1. **`src/components/app/recording-player.tsx`** (owned by code-simplification agent)
+1. **`src/components/app/recording-player.tsx`** (in scope for the simplification pass)
    - The modal player likely needs `role="dialog" aria-modal="true" aria-label="Session recording player"` on its container, an `aria-label` on the close (X) button, an `aria-label` on every playback control (play/pause, skip forward/back, speed, fullscreen), `role="slider"` + `aria-valuenow`/`aria-valuemin`/`aria-valuemax` on the scrubber, and `aria-live="polite"` on the current timestamp display.
-   - Recommended next action: have the code-simplification agent add these when they re-open the file.
+   - Recommended next action: add these in the simplification pass when the file is next re-opened.
 
-2. **`src/components/app/live-tab.tsx`** (owned by code-simplification agent)
+2. **`src/components/app/live-tab.tsx`** (in scope for the simplification pass)
    - The live cursors should have `aria-hidden="true"` (they're decorative; the visitor list itself is the accessible content).
    - The "X viewers" counter should have `aria-live="polite"` so AT announces new viewers.
-   - Recommended next action: have the code-simplification agent add these when they re-open the file.
+   - Recommended next action: add these in the simplification pass when the file is next re-opened.
 
-3. **`src/components/app/use-tracker.ts`** and **`src/components/app/page-mock.tsx`** (owned by code-simplification agent)
+3. **`src/components/app/use-tracker.ts`** and **`src/components/app/page-mock.tsx`** (in scope for the simplification pass)
    - These are non-UI utilities; no accessibility issues identified.
 
-4. **`src/components/app/markdown.tsx`** (owned by code-simplification agent)
-   - Renders AI-generated markdown. Verify it doesn't inject `dangerouslySetInnerHTML` without sanitization (security concern, not strictly a11y). The headings it renders should use proper `<h1>`-`<h6>` semantics — verify when the code-simplification agent re-opens it.
+4. **`src/components/app/markdown.tsx`** (in scope for the simplification pass)
+   - Renders AI-generated markdown. Verify it doesn't inject `dangerouslySetInnerHTML` without sanitization (security concern, not strictly a11y). The headings it renders should use proper `<h1>`-`<h6>` semantics — verify when the file is next re-opened.
 
 ## Verification
 

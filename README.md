@@ -115,7 +115,7 @@ implemented end-to-end (SDK → ingest → DB → query → UI), not stubbed.
 19. **CI/CD on GitHub Actions** — `ci.yml` (lint + type-check + test + build, parallel jobs with concurrency cancellation), `security.yml` (bun audit + TruffleHog secrets scan, weekly cron backstop), `quality-gate.yml` (greps for `console.log` in `src/` as the actual merge gate).
 20. **In-memory TTL cache on stats API** — 60-second TTL persisted to `globalThis` survives HMR; cuts steady-state DB load ~87.5 % at the dashboard's 8 s polling cadence (~22× speedup on cache hit).
 21. **Accessibility (WCAG 2.1 AA)** — 63 violations fixed across 21 components; icon-only buttons labelled, WAI-ARIA tablist/tab/tabpanel on the project tab strip, `role="dialog"` + Escape handling on the demo-site modal, `aria-live` regions on alert bell + history, skip-to-content link in `src/app/layout.tsx`. Full audit at `docs/accessibility-audit.md`.
-22. **Six ADRs under `docs/adr/`** — Prisma+SQLite over Postgres, Socket.io mini-service over in-process WebSocket, LLM-powered AI features, security-hardening layers, in-memory cache for stats, and the addyosmani/agent-skills unified workflow.
+22. **Six ADRs under `docs/adr/`** — Prisma+SQLite over Postgres, Socket.io mini-service over in-process WebSocket, LLM-powered AI features, security-hardening layers, in-memory cache for stats, and the unified engineering workflow.
 
 ---
 
@@ -280,7 +280,7 @@ insight-replay/
 │       ├── 0003-llm-powered-ai-features.md
 │       ├── 0004-security-hardening-layers.md
 │       ├── 0005-in-memory-cache-for-stats.md
-│       └── 0006-agent-skills-unified-workflow.md
+│       └── 0006-unified-engineering-workflow.md
 ├── prisma/schema.prisma                # 16 models + VisitorTombstone + User (race-safe)
 ├── src/
 │   ├── app/                            # Next.js App Router
@@ -359,7 +359,7 @@ insight-replay/
 ├── CONTRIBUTING.md                     # 895-line contributor guide
 ├── SECURITY.md                         # supported versions + reporting policy
 ├── LICENSE                             # MIT (Copyright © 2025 Ziad Mahmoud)
-├── AGENTS.md                           # agent workflow entry point
+├── AGENTS.md                           # engineering workflow entry point
 ├── CONSTRAINTS.md                      # hard constraints (no Kafka, no Postgres)
 └── worklog.md                          # chronological task history (append-only)
 ```
@@ -571,7 +571,7 @@ Other top-level references:
 - **[CHANGELOG.md](./CHANGELOG.md)** — Keep-a-Changelog format, every release
 - **[CONTRIBUTING.md](./CONTRIBUTING.md)** — 895-line contributor guide
 - **[SECURITY.md](./SECURITY.md)** — supported versions + vuln reporting policy
-- **[AGENTS.md](./AGENTS.md)** — AI agent workflow entry point
+- **[AGENTS.md](./AGENTS.md)** — engineering workflow entry point
 - **[CONSTRAINTS.md](./CONSTRAINTS.md)** — hard constraints (what NOT to add)
 - **[worklog.md](./worklog.md)** — chronological task history (append-only)
 
@@ -663,7 +663,7 @@ people, and ideas made this codebase possible:
 - **[Caddy](https://caddyserver.com)** — the gateway; automatic HTTPS, single binary, simple config.
 - **[Docker](https://www.docker.com)** — the multi-stage `Dockerfile` produces the production image.
 - **[GitHub Actions](https://github.com/features/actions)** — CI + security scans + quality gate, all in `.github/workflows/`.
-- **[addyosmani/agent-skills](https://github.com/addyosmani/agent-skills)** — the unified agent workflow adopted in [ADR-0006](./docs/adr/0006-agent-skills-unified-workflow.md).
+- **[docs/README.md](./docs/README.md)** — index of every engineering doc and ADR in the repo.
 - Every contributor, issue reporter, and star-er on GitHub — thank you.
 
 ### Prior art consulted

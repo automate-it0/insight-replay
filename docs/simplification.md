@@ -1,7 +1,6 @@
 # Simplification — recording-player.tsx & live-tab.tsx
 
 Task ID: 3 (Simplification)
-Agent: code-simplification sub-agent
 Scope: simplify the two most complex frontend components while preserving exact behavior.
 
 ---

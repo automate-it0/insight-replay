@@ -5,8 +5,7 @@ three highest-leverage wins identified for this app: caching expensive DB
 aggregations in the stats API, memoizing heavy React components, and reducing
 re-render cost on the overview/dashboard tabs.
 
-Applied skill: `.agent-skills/skills/performance-optimization/SKILL.md`
-(process: MEASURE → IDENTIFY → FIX → VERIFY → GUARD).
+Process: MEASURE → IDENTIFY → FIX → VERIFY → GUARD.
 
 ## What was optimized
 
