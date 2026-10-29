@@ -26,7 +26,7 @@
 
 **Aggregate:** 2 High / 4 Medium / 4 Low. No Critical.
 
-**Headline finding:** The project has a well-designed 6-layer security architecture (ADR-0004) but **two layers are partially unbuilt**: (1) API-key auth is wired only into `/protected-test` (a demo endpoint), not into real dashboard routes; (2) audit logging is shipped as a library but never invoked anywhere in the codebase (`grep -r auditLog src/` returns zero call sites). These are documented as tech-debt in ADR-0004 and the worklog — this audit simply confirms them with current-state evidence.
+**Headline finding:** The project has a well-designed 6-layer security architecture (ADR-0004) but **two layers are partially unbuilt**: (1) API-key auth is wired only into `/protected-test` (a demo endpoint), not into real dashboard routes; (2) audit logging is shipped as a library but never invoked anywhere in the codebase (`grep -r auditLog src/` returns zero call sites). These are documented as tech-debt in ADR-0004 — this audit simply confirms them with current-state evidence.
 
 ---
 
@@ -220,7 +220,7 @@ Using components with known vulnerabilities or outdated versions.
 
 ### Findings
 1. **`bun audit` is in CI** (`.github/workflows/security.yml:43–45`) and runs on every push, every PR, and weekly on Sundays. ✅
-2. **No `bun audit` failures were observed at audit time** (the workflow is green per the worklog Task ID 5 verification).
+2. **No `bun audit` failures were observed at audit time** (the workflow was green at audit time).
 3. **Unused dependency: `next-auth`** — adds to the dependency surface without being imported anywhere. Removing it shrinks the supply-chain attack surface.
 4. **No SBOM generation.** A Software Bill of Materials (CycloneDX / SPDX) would let us track transitive dependencies. Not required for a demo, but recommended for production.
 5. **No pinned versions** — `package.json` uses `^` ranges. `bun.lock` provides reproducible installs, but a fresh `bun install` outside CI could pick up newer patch versions. Acceptable for a small project; a larger project would use Renovate/Dependabot.
@@ -242,7 +242,7 @@ Using components with known vulnerabilities or outdated versions.
 Weak authentication, weak session management, weak credential storage.
 
 ### Findings
-1. **No auth on dashboard.** There is no user model, no login flow, no session cookie. Every dashboard API route is callable by anyone who can reach the host. The API-key layer (`src/lib/auth.ts`) is shipped but only wired into `/protected-test`. **This is the largest unmitigated risk in the project**, but it is **explicitly documented** in ADR-0004 ("Alternatives Considered" — NextAuth rejected for v1) and the worklog. The demo is single-tenant by design.
+1. **No auth on dashboard.** There is no user model, no login flow, no session cookie. Every dashboard API route is callable by anyone who can reach the host. The API-key layer (`src/lib/auth.ts`) is shipped but only wired into `/protected-test`. **This is the largest unmitigated risk in the project**, but it is **explicitly documented** in ADR-0004 ("Alternatives Considered" — NextAuth rejected for v1). The demo is single-tenant by design.
 2. **API keys not hashed at rest** — see A02.
 3. **No session timeout** — N/A, no sessions.
 4. **No account lockout** — N/A, no accounts.

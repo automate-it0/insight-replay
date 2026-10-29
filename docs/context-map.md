@@ -8,9 +8,9 @@ before working on a given area. It is the index over everything else.
 Companion docs:
 - [`architecture.md`](./architecture.md) — runtime topology + data flow.
 - [`api-style-guide.md`](./api-style-guide.md) — HTTP API contract.
-- [`agent-context-guide.md`](./agent-context-guide.md) — how to ramp up
+- [`onboarding.md`](./onboarding.md) — how to ramp up
   on this repo.
-- [`../AGENTS.md`](../AGENTS.md) — engineering workflow + verification bar.
+- [`../CHANGELOG.md`](../CHANGELOG.md) — chronological release history.
 
 ---
 
@@ -113,7 +113,7 @@ my-project/
 │   ├── simplification.md           # recording-player + live-tab extraction report.
 │   ├── ci-cd.md                    # GitHub Actions pipeline.
 │   ├── context-map.md              # ← This file.
-│   ├── agent-context-guide.md      # Onboarding guide: how to ramp up on this repo.
+│   ├── onboarding.md               # Onboarding guide: how to ramp up on this repo.
 │   └── adr/
 │       ├── 0001-use-prisma-sqlite-over-postgres.md
 │       ├── 0002-socketio-mini-service-for-realtime.md

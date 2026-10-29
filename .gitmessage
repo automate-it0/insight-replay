@@ -33,7 +33,7 @@
 #   security        Auth, rate-limit, CORS, sanitization, audit, headers.
 #   observability   Logs, metrics, health, request IDs, middleware.
 #   test            Test files under tests/**.
-#   docs            Markdown under docs/**, AGENTS.md, README.
+#   docs            Markdown under docs/**, README.
 #   ci              .github/workflows/**, scripts/check-quality.sh.
 #
 # Subject rules:

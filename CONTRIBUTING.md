@@ -52,8 +52,7 @@ required to start the demo.
 - **Security layers**: API key auth, rate limiting, CORS+origin validation, IP anonymization, audit logging, security headers, input sanitization.
 - **Engines**: `node >= 20.0.0`, `bun >= 1.3.0` (see `package.json#engines`).
 
-For the full architecture map see [`docs/architecture.md`](./docs/architecture.md);
-for the engineering workflow that governs every change see [`AGENTS.md`](./AGENTS.md).
+For the full architecture map see [`docs/architecture.md`](./docs/architecture.md).
 
 ---
 
@@ -171,13 +170,8 @@ If all three pass, you're ready to open a PR. If any one fails, see
 ├── scripts/                 # check-quality.sh, setup-git.sh, generate-secret.sh, …
 ├── mini-services/live-service/  # socket.io service (port 3004)
 ├── .github/{workflows,ISSUE_TEMPLATE,PULL_REQUEST_TEMPLATE.md}
-├── .gitmessage .env.example AGENTS.md CHANGELOG.md CONSTRAINTS.md package.json
+├── .gitmessage .env.example CHANGELOG.md package.json
 ```
-
-Two files that govern behavior, not code:
-
-- **[`AGENTS.md`](./AGENTS.md)** — the engineering workflow guide. Read it before you start work.
-- **[`CONSTRAINTS.md`](./CONSTRAINTS.md)** — the invariants the project refuses to violate (security posture, self-hosted deployability, …). A PR that violates a constraint is rejected on the spot.
 
 ---
 
@@ -243,7 +237,8 @@ this script works whether or not `bun run dev` is running.
 
 - **Lint failures** — usually `no-unused-vars`, `react-hooks/exhaustive-deps`, or import-order. Run `bun run lint --fix` for the auto-fixable subset. **Never** disable a rule with `eslint-disable` to make lint pass — bring it up in the PR instead.
 - **Type-check warnings** — review them. New errors must be fixed before pushing (reviewers will catch them anyway). Pre-existing errors can be ignored as long as the count didn't go up.
-- **Test failures** — read the message. If a test is failing because of an intentional behaviour change in your PR, update the test in the same commit. If it's failing for a reason you don't understand, STOP — see [`AGENTS.md`](./AGENTS.md) for the debugging-and-error-recovery skill.
+- **Test failures** — read the message. If a test is failing because of an intentional behaviour change in your PR, update the test in the same commit. If it's failing for a reason you don't understand, STOP —
+  open an issue with the failing output and ask before changing product behaviour.
 
 ---
 
@@ -400,7 +395,7 @@ document the reason in the PR description.
 
 - Address review feedback with **new commits** on the same branch (don't amend-and-force-push during review — it makes the conversation hard to follow; squash happens at merge time).
 - Push new commits and re-request review when the previous round is resolved; don't `@-mention` reviewers for every tiny push — wait for a coherent batch.
-- If a reviewer asks for something you disagree with, **push back in the PR**. Honest technical disagreement beats false agreement (see [`AGENTS.md`](./AGENTS.md) §Core Operating Behaviors #3).
+- If a reviewer asks for something you disagree with, **push back in the PR**. Honest technical disagreement beats false agreement.
 
 ---
 
@@ -531,8 +526,6 @@ versioning + changelog policy.
 ## 14. Getting help
 
 - **[`docs/`](./docs)** — the full doc index. Start at [`docs/README.md`](./docs/README.md).
-- **[`AGENTS.md`](./AGENTS.md)** — the engineering workflow guide; tells you which checklist applies to your task.
-- **[`CONSTRAINTS.md`](./CONSTRAINTS.md)** — the invariants the project refuses to violate.
 - **[`.github/ISSUE_TEMPLATE/`](./.github/ISSUE_TEMPLATE)** — `bug_report.md` and `feature_request.md`. Use them when opening issues.
 - **GitHub Discussions** — for design questions that don't belong in an issue yet.
 

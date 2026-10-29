@@ -30,8 +30,6 @@ when a decision is superseded, a new ADR is written that references the old one.
 
 | File | What it covers |
 |------|----------------|
-| [`../AGENTS.md`](../AGENTS.md) | The engineering workflow that governs every change. Decision tree mapping tasks to skills, six core operating behaviors, project context, verification bar. |
-| [`../worklog.md`](../worklog.md) | Chronological history of every task. Append-only; each entry has Task ID, Task, Work Log, Stage Summary. |
 | [`../prisma/schema.prisma`](../prisma/schema.prisma) | The full data model — 16 Prisma models (Project, Session, Event, Insight, ErrorEvent, Funnel, Goal, Segment, Note, Tag, Bookmark, Alert, AlertHistory, Dashboard, Experiment, Annotation, ApiKey). |
 | [`../Caddyfile`](../Caddyfile) | Gateway config — `:81` listener with `@transform_port_query` matcher routing `?XTransformPort=<port>` to non-3000 services. |
 | [`../next.config.ts`](../next.config.ts) | Next.js config — standalone output, 6 security headers applied to `/(.*)`, `typescript.ignoreBuildErrors: true`. |
@@ -49,8 +47,8 @@ when a decision is superseded, a new ADR is written that references the old one.
 4. **Doing security / performance / testing work?** Read the relevant guide
    (`security-audit.md`, `performance.md`, the tests under `tests/`), then
    follow the verification bar.
-5. **Curious what changed recently?** Read [worklog.md](../worklog.md) — every task
-   appends an entry with Task ID, Task, Work Log, Stage Summary.
+5. **Curious what changed recently?** Read the [CHANGELOG](../CHANGELOG.md) — every
+   release is documented there.
 
 ## Conventions for new docs
 

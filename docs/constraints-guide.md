@@ -25,8 +25,8 @@ makes the answer machine-checkable.
 This is also why constraints are *measurable*. "Code should be readable" is a
 value, not a constraint — there's no command that returns a number. "No file >
 800 lines" is a constraint — `wc -l` returns a number, the threshold is 800,
-the check is automatic. If a rule can't be measured, it belongs in `AGENTS.md`
-as an operating behavior, not in `CONSTRAINTS.md`.
+the check is automatic. If a rule can't be measured, it belongs in the
+contributor guide as an operating behavior, not in the constraints list.
 
 ### Hard vs. soft constraints
 
@@ -68,8 +68,7 @@ well-tested" fails #2 and #3 — it's a value, not a constraint.
 Create `docs/adr/NNNN-<short-name>.md` (next free number; current max is
 `0006`). Use the MADR format the existing ADRs use — Context, Decision,
 Consequences, Alternatives Considered. The ADR is where you surface
-assumptions and invite pushback (see `AGENTS.md` "Core Operating Behaviors"
-§1 — surface assumptions before implementing).
+assumptions and invite pushback (surface assumptions before implementing).
 
 The ADR should answer:
 - **Why this threshold and not another?** (e.g. "800 lines, not 500, because
@@ -367,10 +366,9 @@ Two scripts, two purposes:
 | `scripts/check-quality.sh` | Lint (hard), tsc (soft — warns on all errors), tests (hard) | Pre-push — fast feedback on the basics |
 | `scripts/check-constraints.sh` | Everything in `CONSTRAINTS.md` — lint, tsc (src hard, OOS soft), tests, file size, function size, audit, bundle | Pre-push when you want the full picture; also a good "where are we vs. baseline?" check |
 
-`check-quality.sh` is the original script from the CI/CD pass (worklog Task
-ID 2). `check-constraints.sh` is the new script from the constraint-driven
-development pass (worklog Task ID 4). They overlap on lint and tests; neither
-deprecates the other. Run `check-quality.sh` for speed, `check-constraints.sh`
+`check-quality.sh` is the original CI-oriented script.
+`check-constraints.sh` is the broader constraint-driven script. They overlap
+on lint and tests; neither deprecates the other. Run `check-quality.sh` for speed, `check-constraints.sh`
 for completeness.
 
 ---
@@ -394,7 +392,7 @@ docs/adr/                         # ADRs — required for > 3-file decisions (§
 
 ## Verification
 
-When this guide was written (worklog Task ID 4, Constraints agent), the
+When this guide was written, the
 following was confirmed:
 
 ```bash

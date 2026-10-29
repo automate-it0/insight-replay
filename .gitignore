@@ -40,31 +40,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-local-*
-.claude
-.z-ai-config
 *.log
-dev.log
-dev.out.log
-test
-prompt
-
-server.log
-# Local workflow scratch (not part of the app)
-/skills/
-/.agent-skills/
 
 # Audit logs
 /logs/
-
-# --- Local tooling scratch + build outputs (do NOT delete; gitignore only) ---
-# Editor / local-tooling scratch files (not part of the app)
-worklog.md
-tool-results/
-AGENTS.md
-CONSTRAINTS.md
-.cursor/
-.zscripts/
 
 # Build outputs (Next.js standalone export, tsbuildinfo, .next/cache explicit)
 dist/
@@ -75,4 +54,3 @@ tsconfig.tsbuildinfo
 *.pid
 dev.pid
 
-# Note: *.log and dev.log are already covered above (lines 46-47) — not duplicated here.

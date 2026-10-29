@@ -112,8 +112,8 @@ Runs the same three checks CI runs, with one difference:
 | `bun test tests/`     | hard fail      | hard fail |
 
 `tsc --noEmit` is soft locally because the project has a handful of pre-existing
-TS errors being paid down (see `docs/code-review.md` — worklog Task ID 2 notes
-11 pre-existing TS errors as of that pass). CI still enforces it as a hard gate
+TS errors being paid down (see `docs/code-review.md`, which notes
+11 pre-existing TS errors at the time of that review). CI still enforces it as a hard gate
 to prevent new errors from landing; locally we just warn so devs aren't blocked
 on errors they didn't introduce.
 

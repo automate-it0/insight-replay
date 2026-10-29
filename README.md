@@ -273,7 +273,7 @@ insight-replay/
 │   ├── ci-cd.md / git-workflow.md / deprecation-plan.md
 │   ├── tech-debt.md / simplification.md / constraints-guide.md
 │   ├── context-map.md / doubt-review.md / source-verification.md
-│   ├── bug-fixes.md / agent-context-guide.md
+│   ├── bug-fixes.md / onboarding.md
 │   └── adr/                            #   Architecture Decision Records (immutable)
 │       ├── 0001-use-prisma-sqlite-over-postgres.md
 │       ├── 0002-socketio-mini-service-for-realtime.md
@@ -358,10 +358,7 @@ insight-replay/
 ├── CHANGELOG.md                        # Keep-a-Changelog format
 ├── CONTRIBUTING.md                     # 895-line contributor guide
 ├── SECURITY.md                         # supported versions + reporting policy
-├── LICENSE                             # MIT (Copyright © 2025 Ziad Mahmoud)
-├── AGENTS.md                           # engineering workflow entry point
-├── CONSTRAINTS.md                      # hard constraints (no Kafka, no Postgres)
-└── worklog.md                          # chronological task history (append-only)
+├── LICENSE                             # MIT (Copyright © 2025 Ziad Kishk)
 ```
 
 ---
@@ -571,9 +568,6 @@ Other top-level references:
 - **[CHANGELOG.md](./CHANGELOG.md)** — Keep-a-Changelog format, every release
 - **[CONTRIBUTING.md](./CONTRIBUTING.md)** — 895-line contributor guide
 - **[SECURITY.md](./SECURITY.md)** — supported versions + vuln reporting policy
-- **[AGENTS.md](./AGENTS.md)** — engineering workflow entry point
-- **[CONSTRAINTS.md](./CONSTRAINTS.md)** — hard constraints (what NOT to add)
-- **[worklog.md](./worklog.md)** — chronological task history (append-only)
 
 ---
 
@@ -604,7 +598,7 @@ Insight Replay is released under the **[MIT License](./LICENSE)**.
 ```
 MIT License
 
-Copyright (c) 2025 Ziad Mahmoud
+Copyright (c) 2025 Ziad Kishk
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -680,13 +674,10 @@ people, and ideas made this codebase possible:
 
 **Insight Replay** is authored and maintained by:
 
-<!-- Replace the placeholder below with the real author/maintainer info -->
-- **<AUTHOR_PLACEHOLDER>** — _project lead_
-  - GitHub: [@<your-handle>](https://github.com/<your-handle>) · Email: <your.email@example.com> · Personal site: [<yoursite.example.com>](https://example.com)
+- **Ziad Kishk** — _project lead_
+  - GitHub: [@automate-it0](https://github.com/automate-it0)
 
-Contributors are listed in the GitHub Contributors graph at <https://github.com/automate-it0/insight-replay/graphs/contributors>. The chronological history of every task and contributor is in [`worklog.md`](./worklog.md) — append-only, every entry has Task ID, Agent, Task, Work Log, Stage Summary.
-
-> **Note for the maintainer**: replace the `<AUTHOR_PLACEHOLDER>` block above with the real author name + contact links before publishing. The MIT `LICENSE` file already credits `Ziad Mahmoud` (2025); keep the two in sync.
+Contributors are listed in the GitHub Contributors graph at <https://github.com/automate-it0/insight-replay/graphs/contributors>.
 
 ---
 

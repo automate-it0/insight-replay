@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     "A Microsoft Clarity-style analytics platform: session recordings, click heatmaps, live visitor tracking, and behavioral insights.",
   keywords: ["analytics", "session replay", "heatmap", "live tracking", "Clarity"],
   authors: [{ name: "Insight Replay" }],
-  icons: { icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg" },
+  icons: { icon: "/logo.svg" },
 };
 
 export default async function RootLayout({

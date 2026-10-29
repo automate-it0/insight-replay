@@ -29,7 +29,7 @@
     "url": "https://github.com/automate-it0/insight-replay/issues"
   },
   "license": "MIT",
-  "author": "Ziad Mahmoud",
+  "author": "Ziad Kishk",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",

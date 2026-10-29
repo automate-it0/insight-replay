@@ -1,47 +1,39 @@
-# Insight Replay — Contributor Context Guide
+# Insight Replay — Contributor Onboarding Guide
 
 This is the operating manual for **any contributor** working on Insight Replay.
-It tells you how to start a session, how to verify your work, what traps to
-avoid, and how to stay in your lane when multiple people work in parallel.
+It tells you how to get started, how to verify your work, what traps to
+avoid, and how to coordinate with other contributors.
 
-Read this **before** your first action. Pair it with:
+Read this **before** your first PR. Pair it with:
 
-- [`AGENTS.md`](../AGENTS.md) — the engineering workflow + verification bar.
-- [`worklog.md`](../worklog.md) — every prior task's narrative.
 - [`context-map.md`](./context-map.md) — the project map (where things live).
+- [`../CHANGELOG.md`](../CHANGELOG.md) — chronological release history.
 
 ---
 
-## 1. How to start a session
+## 1. How to start
 
 ### 1.1 Read these first (in order)
 
-1. [`AGENTS.md`](../AGENTS.md) — the workflow. Defines the task decision tree
-   (which checklist applies to which task), the six core operating behaviors
-   (surface assumptions, manage confusion, push back, enforce simplicity,
-   maintain scope, verify don't assume), the project context, and the
-   verification bar.
-2. [`worklog.md`](../worklog.md) — at minimum the last 3–5 entries. This tells
-   you what other contributors are doing RIGHT NOW (parallel work) and what's
-   recently changed. The worklog is append-only; entries are separated by `---`.
-3. [`context-map.md`](./context-map.md) — the directory map + the 10 key files
-   + the "if you're working on X, read these first" guide.
+1. [`context-map.md`](./context-map.md) — the directory map, the 10 key files,
+   and the "if you're working on X, read these first" guide.
+2. [`architecture.md`](./architecture.md) — which processes run, on which ports,
+   and how data flows between them.
+3. Open issues and recent PRs — what other contributors are doing right now
+   and what has changed recently.
 
 ### 1.2 Sanity-check the environment
 
 Before writing any code, confirm the baseline is green:
 
 ```bash
-cd /home/z/my-project
 bun run lint                            # must exit 0
 bun test tests/ 2>&1 | tail -5          # must pass (skips OK if dev server down)
-ls dev.log 2>/dev/null && tail -3 dev.log   # is the dev server already running?
 ```
 
-If `bun run lint` is not clean on a baseline checkout, **stop and report** —
-don't try to fix unrelated lint errors as a side-effect of your task
-(unless your task explicitly includes them). The worklog will tell you
-who owns the dirty file.
+If `bun run lint` is not clean on a baseline checkout, **stop and open an
+issue** — don't try to fix unrelated lint errors as a side effect of your
+task (unless your task explicitly includes them).
 
 ### 1.3 Decide if you need the runtime up
 
@@ -52,15 +44,14 @@ who owns the dirty file.
   `bun mini-services/live-service/index.ts` in another, `caddy run --config
   Caddyfile` in a third if you need the gateway). Probe `/api/health` to
   confirm it's up.
-- UI changes: also start the dev server; use `agent-browser` to snapshot
-  the page and inspect the accessibility tree.
+- UI changes: also start the dev server; snapshot the page in a headless
+  browser and inspect the accessibility tree.
 
 ### 1.4 State your assumptions
 
-Per AGENTS.md core behavior #1: before implementing anything non-trivial,
-write down the assumptions you're making (in your worklog entry or in a
-reply to the user). Examples: "I'm assuming the dev server is up and
-seeded with demo data", "I'm assuming no other agent is editing
+Before implementing anything non-trivial, write down the assumptions you're
+making — in the PR description or an issue. Examples: "I'm assuming the dev
+server is seeded with demo data", "I'm assuming nobody else is editing
 `recordings-tab.tsx` right now". If an assumption turns out to be wrong,
 **stop and ask** — don't guess.
 
@@ -68,7 +59,7 @@ seeded with demo data", "I'm assuming no other agent is editing
 
 ## 2. How to verify your work
 
-The verification bar from AGENTS.md, in execution order:
+The verification bar, in execution order:
 
 ### 2.1 Lint
 
@@ -78,8 +69,8 @@ bun run lint
 
 Must exit 0. If you see errors:
 - **In your own files**: fix them.
-- **In files you didn't touch**: report in your worklog entry; don't fix
-  them silently (scope discipline).
+- **In files you didn't touch**: report it in an issue; don't fix them
+  silently (scope discipline).
 
 ### 2.2 Typecheck
 
@@ -105,13 +96,13 @@ function to `src/lib/`, add a matching `tests/<module>.test.ts`.
 
 ```bash
 bun run dev
-# wait for "✓ Compiled in …ms" in dev.log
+# wait for "✓ Compiled in …ms" in the dev server output
 # visit http://localhost:81/  (or http://localhost:3000/ if Caddy isn't up)
 ```
 
-No fatal errors in `dev.log`. If a page 500s on load, find the syntax/type
+No fatal errors on startup. If a page 500s on load, find the syntax/type
 error in the offending file (it's usually named in the log) and either
-fix it (if it's yours) or document the blocker in your worklog.
+fix it (if it's yours) or open an issue documenting the blocker.
 
 ### 2.5 API contracts (if you touched an API route)
 
@@ -129,7 +120,7 @@ curl -X POST http://localhost:3000/api/track/events \
 
 ### 2.6 Browser (if you touched UI)
 
-Use the `agent-browser` skill (or any headless browser). Snapshot:
+Use any headless browser. Snapshot and confirm:
 
 - The page renders without console errors.
 - Landmarks present: `main`, `nav`, `header` (or complementary).
@@ -141,30 +132,6 @@ Use the `agent-browser` skill (or any headless browser). Snapshot:
 
 ```bash
 tail -5 logs/audit.jsonl   # confirm your action logged with the right AUDIT_ACTIONS constant
-```
-
-### 2.8 Append your worklog entry
-
-Every task ends with a `worklog.md` append. Format (separated by `---`):
-
-```markdown
----
-Task ID: <N> (<skill name>)
-Agent: <you>
-Task: <one-line summary>
-
-Work Log:
-- What you read first.
-- What you changed, file by file, with the why.
-- Any Chesterton's-fence notes (things you considered changing but kept,
-  and why).
-- Any blockers (e.g. dev server down because of another agent's WIP).
-
-Stage Summary:
-- Files touched (count + list).
-- Verification gates cleared (lint ✓, tests ✓ N pass, dev compiles ✓,
-  browser ✓).
-- What's left for the next agent.
 ```
 
 ---
@@ -209,7 +176,7 @@ project follows a 4-phase migration plan documented in
 
 1. Add the new field (additive).
 2. Update callers to use the new field.
-3. Deprecate the old field (still present, marked deprecated).
+3. Deprerecation: mark the old field deprecated (still present).
 4. Remove the old field in a follow-up release.
 
 **Never**:
@@ -220,10 +187,10 @@ project follows a 4-phase migration plan documented in
 
 ### 3.4 Don't import server-only libs into client components
 
-`z-ai-web-dev-sdk`, `fs`, `prisma`, `@prisma/client`, `socket.io` (server)
+LLM SDKs, `fs`, `prisma`, `@prisma/client`, `socket.io` (server)
 — all server-only. Importing them into `src/components/**` or
 `src/app/**/page.tsx` will either (a) break the build, (b) bloat the
-browser bundle, or (c) leak secrets. AI calls go through
+browser bundle, or (c) leak secrets. LLM calls go through
 `/api/projects/[id]/ai*` routes; the route handler lazy-imports the SDK
 server-side.
 
@@ -246,25 +213,18 @@ JSON columns, and case sensitivity.
 
 `src/components/ui/*` is generated shadcn/ui code. Customise by composing
 (wrap a primitive in a new component under `src/components/app/`), not by
-editing the primitive. If you must edit a primitive (rare), regenerate
-the diff with `bunx shadcn@latest add <component>` first to confirm
+editing the primitive. If you must edit a primitive (rare), regenerate the
+diff with `bunx shadcn@latest add <component>` first to confirm
 you're not diverging from upstream.
 
-### 3.8 Don't skip the worklog
-
-If your task doesn't end with a `worklog.md` entry, the next agent has no
-way to know what you did. Even a "no-op, decided not to change anything"
-entry is valuable — it tells the next agent the question was asked and
-answered.
-
-### 3.9 Don't trust `next.config.ts` `ignoreBuildErrors`
+### 3.8 Don't trust `next.config.ts` `ignoreBuildErrors`
 
 `typescript.ignoreBuildErrors: true` and `eslint.ignoreDuringBuilds: false`
 mean the **build** won't fail on TS errors but **will** fail on lint
 errors. Always run `bun run lint` AND `bunx tsc --noEmit` separately —
 the build passing does not imply type-safety.
 
-### 3.10 Don't persist raw IPs or user agents
+### 3.9 Don't persist raw IPs or user agents
 
 The pattern is: `anonymizeIP(rawIp)` → store. `parseUA(ua)` → store the
 parsed `{device, browser, os}`, keep the raw UA in `Session.userAgent` for
@@ -273,49 +233,38 @@ session-like model, follow the same pattern.
 
 ---
 
-## 4. File boundary rules when working in parallel
+## 4. Scope discipline when working in parallel
 
-Multiple agents may be working on this repo simultaneously. To avoid
+Multiple contributors may be working on this repo simultaneously. To avoid
 clobbering each other:
 
 ### 4.1 Touch only what your task asks you to touch
 
-Per AGENTS.md core behavior #5 (maintain scope discipline). If you spot a
-bug in a file outside your scope:
+If you spot a bug in a file outside your scope:
 
-1. **Don't fix it inline.** Note it in your worklog entry under "Blockers
-   / observations".
-2. The next agent whose scope includes that file will pick it up.
+1. **Don't fix it inline.** Note it in your PR description under
+   "observations" or open an issue.
+2. The contributor whose scope includes that file will pick it up.
 3. If the bug blocks your verification (e.g. a syntax error in someone
    else's WIP is making the dev server 500 on every page), document it
-   in detail in your worklog — file, line, the exact fix needed — but
-   don't apply the fix.
+   in detail — file, line, the exact fix needed — but don't apply the
+   fix.
 
-### 4.2 File-ownership map (typical parallel split)
+### 4.2 Coordination-sensitive areas
 
-| Area                                      | Owned by                                |
-|-------------------------------------------|-----------------------------------------|
-| `src/components/app/recording-player.tsx` | simplification pass (per worklog)      |
-| `src/components/app/live-tab.tsx`         | simplification pass                     |
-| `src/components/app/use-tracker.ts`       | simplification pass                     |
-| `src/components/app/page-mock.tsx`        | simplification pass                     |
-| `src/components/app/filter-bar.tsx`       | accessibility pass (recently edited)    |
-| All other `src/components/app/*.tsx`      | open (check worklog for recent edits)   |
-| `src/lib/*`                               | open                                    |
-| `src/app/api/**`                          | open (API migration tracked separately) |
-| `src/middleware.ts`                       | hardening pass                          |
-| `next.config.ts`                          | hardening pass                          |
-| `prisma/schema.prisma`                    | requires coordination (destructive `db push`) |
-| `tests/**`                                | test pass                                |
-| `docs/**`                                 | documentation pass                      |
-| `.github/workflows/**`                    | CI pass                                 |
-| `AGENTS.md`, `worklog.md`                 | append-only; anyone may append          |
+| Area                                      | Why it needs coordination           |
+|-------------------------------------------|-------------------------------------|
+| `prisma/schema.prisma`                    | destructive `db push` — announce first |
+| `src/middleware.ts`, `next.config.ts`     | security posture — review required  |
+| `src/components/app/*`                     | check open PRs before editing       |
+| `src/app/api/**`                          | API migration tracked separately    |
+| `tests/**`                                 | keep the suite green at all times   |
+| `.github/workflows/**`                     | CI affects everyone                 |
 
-When in doubt, **grep the worklog** for the filename before editing it.
+When in doubt, check open PRs for the file before editing it.
 
 ### 4.3 Append-only files
 
-- `worklog.md` — append a `---`-separated entry. Never edit prior entries.
 - `docs/adr/NNNN-*.md` — ADRs are immutable; supersede with a new ADR
   that references the old one.
 - `logs/audit.jsonl`, `logs/app.jsonl` — runtime append-only.
@@ -324,34 +273,33 @@ When in doubt, **grep the worklog** for the filename before editing it.
 
 - `bun run db:push` is destructive (`--accept-data-loss` is baked into
   the script). Don't run it unless you've checked that nobody else is
-  mid-query. If you must change the schema, announce it in your worklog
-  entry **before** running the command.
+  mid-query. If you must change the schema, announce it (issue or PR)
+  **before** running the command.
 - `bun run db:reset` wipes everything. Don't run it without explicit
-  user permission.
+  maintainer permission.
 - Deleting a file is rarely the right move. If a file is unused, mark it
   deprecated in a comment and leave it for the next contributor to remove
   after confirming no caller relies on it.
 
-### 4.5 Communication via worklog
+### 4.5 Communicate in PRs and issues
 
-When you finish a session, your worklog entry should answer:
+When you open a PR, the description should answer:
 
 1. What did you change? (files + counts)
 2. Why? (one paragraph of motivation)
 3. What did you consider but reject? (Chesterton's fence)
-4. What blockers did you hit? (others' WIP, missing runtime, etc.)
-5. What's left for the next contributor? (deferred fixes, follow-up tasks)
+4. What blockers did you hit?
+5. What's left for follow-up? (deferred fixes, follow-up tasks)
 
-If everyone does this, the worklog becomes a coordination channel:
-the next contributor reads your entry, knows what's safe to touch, and knows
-what to defer.
+If everyone does this, the next contributor reads your PR, knows what's
+safe to touch, and knows what to defer.
 
 ---
 
 ## 5. Quick reference — the 30-second version
 
 ```
-START:  read AGENTS.md → worklog.md (last 5) → context-map.md.
+START:  read context-map.md → architecture.md → open issues and PRs.
 
 CODE:   use apiSuccess/apiError/paginated. Validate with src/lib/validate.ts.
         Sanitize at the edge. Anonymize before persist. Audit-log mutations.
@@ -359,9 +307,6 @@ CODE:   use apiSuccess/apiError/paginated. Validate with src/lib/validate.ts.
 
 VERIFY: bun run lint (exit 0) → bunx tsc --noEmit → bun test tests/ →
         bun run dev (compiles) → curl the endpoint → verify the page in a browser.
-
-LOG:    append a worklog.md entry (Task ID, Task, Work Log, Stage Summary).
-        Note Chesterton's-fence decisions and blockers.
 
 DON'T:  break ingest. Remove security layers. Change API shapes without a
         migration plan. Import server libs into client code. Mock the DB.
