@@ -19,7 +19,6 @@ Companion docs:
 ```
 my-project/
 ├── AGENTS.md                       # Engineering workflow + verification bar. Read first.
-├── worklog.md                      # Append-only chronological history of every task.
 ├── package.json                    # Bun scripts: dev / build / lint / db:push / db:migrate / db:reset / start.
 ├── next.config.ts                  # Next.js config: standalone output + 6 security response headers.
 ├── tsconfig.json                   # strict TS, path alias @/* → src/*

@@ -392,4 +392,4 @@ A reviewer's minimum-viable demo loop:
 - [ADRs](./adr/) — the *why* behind each major decision.
 - [API reference](./api-reference.md) — the *what* of every HTTP endpoint.
 - [CONTRIBUTING.md](../CONTRIBUTING.md) — the engineering workflow that governs all changes.
-- [worklog.md](../worklog.md) — chronological history of every task.
+- [CHANGELOG.md](../CHANGELOG.md) — chronological release history.
