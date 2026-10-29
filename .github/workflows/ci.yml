@@ -58,6 +58,28 @@ jobs:
       - name: Run ESLint
         run: bun run lint
 
+      # Production code lives under src/ (app code) and mini-services/ (live
+      # socket.io service). Tests and scripts are allowed to use console.log.
+      # Allow-list: anything under tests/, scripts/, .github/, docs/, examples/.
+      # This check runs here — in the pull_request/push context — so the
+      # privileged workflow_run Quality Gate never has to check out code.
+      - name: Check for console.log in production source
+        run: |
+          set -euo pipefail
+          matches=$(grep -rnE "console\.log" \
+            --include="*.ts" --include="*.tsx" \
+            --exclude-dir=node_modules \
+            src/ mini-services/ 2>/dev/null || true)
+          if [ -n "$matches" ]; then
+            echo "::error::Found console.log calls in production source:"
+            echo "$matches"
+            echo ""
+            echo "Remove them or replace with the structured logger in src/lib/observability.ts"
+            exit 1
+          else
+            echo "No console.log calls found in src/ or mini-services/."
+          fi
+
   # --- Job 2: Type-check -----------------------------------------------------
   type-check:
     name: Type-check

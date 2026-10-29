@@ -1,22 +1,27 @@
 name: Quality Gate
 
-# The merge gate. This workflow runs AFTER the CI workflow finishes, and:
-#   1. Verifies the CI workflow itself succeeded (lint + type-check + test all green).
-#   2. Greps production source for stray `console.log` calls.
-# If anything fails, the gate is red and the PR cannot merge.
+# The merge gate. This workflow runs AFTER the CI workflow finishes, and
+# verifies that the CI workflow itself succeeded — which transitively means
+# lint (incl. the console.log hygiene check), type-check, and test were all
+# green on that exact commit.
 #
 # In GitHub branch protection, set "Quality Gate / quality-gate" as a required
-# status check. Because this job only passes when CI also passed, it transitively
-# enforces lint + test (and the console.log hygiene rule) before merge.
+# status check. Because this job only passes when CI also passed, it
+# transitively enforces lint + test (+ the console.log hygiene rule, which
+# runs as a step of CI's lint job) before merge.
+#
+# Security note: this workflow deliberately performs NO checkout. A
+# `workflow_run` event runs in the context of the target repository (with
+# access to repository secrets), so it must never check out or execute code
+# from the incoming ref. All code inspection happens in the CI workflow's
+# `pull_request` / `push` context, which is the standard safe place for it.
 
 on:
   workflow_run:
     workflows: [CI]
     types: [completed]
 
-permissions:
-  contents: read
-  actions: read
+permissions: {}
 
 jobs:
   quality-gate:
@@ -34,12 +39,9 @@ jobs:
             const run = context.payload.workflow_run;
             const headSha = run.head_sha;
             const runHtmlUrl = run.html_url;
-            // Security (Semgrep workflow-run-target-code-checkout): a
-            // workflow_run event can be triggered from a fork whose
-            // head_sha is attacker-controlled code. Before this job
-            // checks out and inspects that commit, verify the run
-            // originated from THIS repository — never gate on (or check
-            // out) foreign code.
+            // A workflow_run event can be triggered from a fork. Never gate
+            // on (or trust results from) a run that originated outside THIS
+            // repository.
             const headRepo = run.head_repository.full_name;
             const thisRepo = context.payload.repository.full_name;
             if (headRepo !== thisRepo) {
@@ -54,36 +56,5 @@ jobs:
                 ` — Quality Gate cannot pass until lint, type-check, and test are all green.`
               );
             } else {
-              core.info(`CI workflow on ${headSha} from ${headRepo} succeeded. Proceeding to gate checks.`);
+              core.info(`CI workflow on ${headSha} from ${headRepo} succeeded. Quality gate passed.`);
             }
-
-      - name: Checkout PR head
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-
-      - name: Check for console.log in production source
-        run: |
-          set -euo pipefail
-          # Production code lives under src/ (app code) and mini-services/ (live
-          # socket.io service). Tests and scripts are allowed to use console.log.
-          # Allow-list: anything under tests/, scripts/, .github/, docs/, examples/.
-          matches=$(grep -rnE "console\.log" \
-            --include="*.ts" --include="*.tsx" \
-            --exclude-dir=node_modules \
-            src/ mini-services/ 2>/dev/null || true)
-          if [ -n "$matches" ]; then
-            echo "::error::Found console.log calls in production source:"
-            echo "$matches"
-            echo ""
-            echo "Remove them or replace with the structured logger in src/lib/observability.ts"
-            exit 1
-          else
-            echo "No console.log calls found in src/ or mini-services/."
-          fi
-
-      - name: Quality gate passed
-        run: |
-          echo "✓ Quality gate passed"
-          echo "  - CI workflow succeeded (lint + type-check + test green)"
-          echo "  - No console.log in production source"
