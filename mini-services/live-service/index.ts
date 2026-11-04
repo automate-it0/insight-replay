@@ -376,7 +376,13 @@ io.on('connection', (socket) => {
 
 // Every 1s: broadcast live cursor snapshots for active sessions to viewers,
 // and prune stale tracker sessions (no activity for 60s).
-setInterval(() => {
+//
+// The handle is stored on a registry so the SIGTERM/SIGINT handlers below
+// can clearInterval() it during graceful shutdown — otherwise the Node
+// process keeps emitting cursor-snapshots to dead sockets for ~1s after
+// httpServer.close() returns, which surfaces as "write after end" warnings
+// in container logs.
+const cursorSnapHandle = setInterval(() => {
   const now = Date.now()
   for (const [id, s] of activeSessions) {
     if (now - s.lastSeen > 60000) {
@@ -400,7 +406,7 @@ setInterval(() => {
 // slots from zombie trackers that pass ping/pong but emit no cursor data.
 // Viewers are intentionally NOT swept here — they are passive recipients and
 // rely solely on ping/pong for liveness.
-setInterval(() => {
+const staleSweepHandle = setInterval(() => {
   const now = Date.now()
   for (const [sid, last] of lastTrackerActivity) {
     if (now - last > 60000) {
@@ -425,9 +431,18 @@ httpServer.listen(PORT, () => {
   log('service.started', { port: PORT })
 })
 
-process.on('SIGTERM', () => {
-  httpServer.close(() => process.exit(0))
-})
-process.on('SIGINT', () => {
-  httpServer.close(() => process.exit(0))
-})
+// Graceful shutdown: clear intervals BEFORE closing the server so the
+// cursor-snapshot loop does not race httpServer.close() and log
+// "write after end" warnings. io.close() drains in-flight socket
+// writes before destroying them; httpServer.close() stops accepting
+// new connections. Together they exit cleanly under container SIGTERM.
+function shutdown(signal: NodeJS.Signals) {
+  log('service.shutdown', { signal })
+  clearInterval(cursorSnapHandle)
+  clearInterval(staleSweepHandle)
+  io.close(() => {
+    httpServer.close(() => process.exit(0))
+  })
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+process.on('SIGINT', () => shutdown('SIGINT'))
