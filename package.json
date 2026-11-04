@@ -62,7 +62,7 @@
     "prisma": "^6.11.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "recharts": "^2.15.4",
+    "recharts": "^3.10.1",
     "socket.io-client": "^4.8.4",
     "sonner": "^2.0.6",
     "tailwind-merge": "^3.3.1",
