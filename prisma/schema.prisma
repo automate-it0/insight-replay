@@ -71,11 +71,13 @@ model Session {
   bookmarks      Bookmark[]
 
   @@index([projectId, startedAt])
+  @@index([projectId, lastActiveAt])
   @@index([projectId, isActive])
   @@index([isActive])
   @@index([visitorId, projectId])
   @@index([projectId, isNewVisitor])
   @@index([projectId, experimentId, variant])
+  @@index([startedAt])
 }
 
 model Event {
@@ -95,7 +97,7 @@ model Event {
   y              Int      @default(0)
 
   @@index([sessionId, t])
-  @@index([type])
+  @@index([type, timestamp])
 }
 
 model Insight {
@@ -109,6 +111,7 @@ model Insight {
   data      String   @default("{}")
 
   @@index([projectId, type])
+  @@index([projectId, timestamp])
   @@index([sessionId])
 }
 
