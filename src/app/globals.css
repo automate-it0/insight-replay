@@ -119,6 +119,20 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Eliminate the legacy 300ms tap-to-zoom delay on touch devices
+     (iOS Safari before iOS 13, and any browser where the viewport
+     meta tag is not the magic width=device-width trigger). Without
+     this, every <button> and <a> on the dashboard incurs a perceptible
+     ~300ms INP penalty on first tap. `manipulation` permits panning
+     and pinch-zoom but disables the double-tap-to-zoom gesture,
+     which is what triggers the delay in the first place. */
+  button,
+  a,
+  [role="button"],
+  [role="link"],
+  summary {
+    touch-action: manipulation;
+  }
 }
 
 /* Custom scrollbar */
