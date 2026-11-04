@@ -47,6 +47,16 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning className="dark" nonce={nonce}>
+      <head>
+        {/* Preconnect to Google Fonts metadata API so next/font's
+            self-hosting handshake completes one RTT sooner on cold
+            visits. next/font already injects its own preconnect tags
+            for the font asset itself; this one targets the metadata
+            endpoint that next/font hits at build time and (when
+            running next dev) at request time. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
