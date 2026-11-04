@@ -60,7 +60,11 @@ function getClientIP(req: Request): string {
   return req.headers.get("x-real-ip") || "0.0.0.0"
 }
 
-export async function ingest(payload: IngestPayload, req: Request) {
+export async function ingest(
+  payload: IngestPayload,
+  req: Request,
+  projectRow?: { id: string } | null,
+) {
   // Defence-in-depth: even though /api/track/events calls sanitizePayload()
   // before passing the payload here, ingest() is also called from the seed
   // route and could be called from future ingest paths. Run a final
@@ -72,9 +76,11 @@ export async function ingest(payload: IngestPayload, req: Request) {
   // arbitrary extra keys. The cast widens to the sanitizable shape; the
   // result is re-narrowed back to `IngestPayload` on the next line.
   const safe = sanitizePayload(payload as unknown as SanitizablePayload) as IngestPayload
-  const project = await db.project.findFirst({
-    where: { OR: [{ id: safe.projectId }, { trackingId: safe.projectId }] },
-  })
+  const project =
+    projectRow ??
+    (await db.project.findFirst({
+      where: { OR: [{ id: safe.projectId }, { trackingId: safe.projectId }] },
+    }))
   if (!project) return { ok: false, error: "unknown project" }
 
   const ua = safe.userAgent || req.headers.get("user-agent") || ""
@@ -314,11 +320,19 @@ export async function ingest(payload: IngestPayload, req: Request) {
         .createMany({ data: errRows.slice(i, i + 200) })
         .catch(() => null)
     }
-    await db.session.update({ where: { id: session.id }, data: { hasError: true } })
   }
 
-  if (safe.end) {
-    await db.session.update({ where: { id: session.id }, data: { isActive: false } })
+  // Single tail update (was two): crashes between the error-flag write and
+  // the end-flag write can no longer leave events inserted but flags unset,
+  // and the common final beacon costs one transaction instead of two.
+  if (safe.errors?.length || safe.end) {
+    await db.session.update({
+      where: { id: session.id },
+      data: {
+        ...(safe.errors?.length ? { hasError: true } : {}),
+        ...(safe.end ? { isActive: false } : {}),
+      },
+    })
   }
 
   return { ok: true, sessionId: session.id, projectId: project.id }

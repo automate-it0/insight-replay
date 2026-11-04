@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { validateApiKey, unauthorizedResponse } from "@/lib/auth"
+import { requireProjectAccess } from "@/lib/route-guards"
 import { auditLog, AUDIT_ACTIONS } from "@/lib/audit"
 import { getClientIP } from "@/lib/rate-limit"
 import { sanitizeError } from "@/lib/observability"
@@ -17,10 +17,10 @@ export async function DELETE(
   ctx: { params: Promise<{ id: string; kid: string }> },
 ) {
   const { id, kid } = await ctx.params
-  if (process.env.NODE_ENV === "production") {
-    const auth = await validateApiKey(req, id)
-    if (!auth.valid) return unauthorizedResponse()
-  }
+  const guard = await requireProjectAccess(req as unknown as Request, id, "apikey_revoke", {
+    audit: false,
+  })
+  if (guard.error) return guard.error
   try {
     await db.apiKey.deleteMany({ where: { id: kid, projectId: id } })
     // Audit-log API key revocation. The key itself is never logged — only its

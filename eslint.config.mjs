@@ -103,17 +103,6 @@ const eslintConfig = [
       "no-useless-escape": "off",
     },
   },
-  {
-    // Per-file override: the shadcn/ui `<ChartStyle>` primitive must use
-    // `dangerouslySetInnerHTML` to inline CSS into a `<style>` element (React
-    // has no other API for raw CSS text content of `<style>`). The CSS
-    // payload is sanitized through `sanitizeCssForStyle` before insertion,
-    // so this site is the documented, defense-in-depth exception.
-    files: ["src/components/ui/chart.tsx"],
-    rules: {
-      "react/no-danger": "off",
-    },
-  },
   // eslint-config-prettier — must come LAST in the flat config array so its
   // "off" settings for formatting rules override any prior config. Without
   // this entry, ESLint and Prettier would fight over spacing/quotes/semis.

@@ -6,7 +6,9 @@ import { requireProjectAccess } from "@/lib/route-guards"
 import { sanitizeError } from "@/lib/observability"
 
 function csvCell(value: unknown): string {
-  const s = value == null ? "" : String(value)
+  let s = value == null ? "" : String(value)
+  // Formula-injection guard: prefix cells spreadsheets would evaluate.
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s
   if (/[",\n\r]/.test(s)) {
     return `"${s.replace(/"/g, '""')}"`
   }
@@ -50,8 +52,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   void guard.session
   const requestId = (req.headers.get("x-request-id") as string | null) ?? undefined
   try {
-    const range = req.nextUrl.searchParams.get("range") || "7"
-    const days = parseInt(range, 10)
+    const rangeParam = req.nextUrl.searchParams.get("range") || "7"
+    const parsedDays = parseInt(rangeParam, 10)
+    const days = Number.isFinite(parsedDays) && parsedDays > 0 && parsedDays < 3650 ? parsedDays : 7
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
     const filter = req.nextUrl.searchParams.get("filter") || "all"
 
@@ -74,6 +77,12 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     const sessions = await db.session.findMany({
       where,
       orderBy: { startedAt: "desc" },
+      select: {
+        id: true, visitorId: true, startedAt: true, duration: true, device: true,
+        browser: true, os: true, country: true, city: true, pageViewsCount: true,
+        totalClicks: true, entryUrl: true, exitUrl: true, hasRageClick: true,
+        hasDeadClick: true, hasError: true, convertedGoal: true, referrer: true, utmSource: true,
+      },
       take: 5000,
     })
 

@@ -141,6 +141,21 @@ export async function POST(req: NextRequest) {
   const start = Date.now()
   const requestId = getRequestId(req as unknown as Request)
   try {
+    // Body cap: the middleware's 15KB Layer-2b check is skipped by the
+    // /api/track/* short-circuit, so enforce a route-level cap here. Real SDK
+    // batches are ≤ ~10KB after sanitization; 256KB is generous headroom.
+    // Chunked bodies carry no Content-Length (fetch/sendBeacon always send
+    // one) — reject them so the cap can't be bypassed.
+    const MAX_INGEST_BYTES = 262_144
+    const contentLength = parseInt(req.headers.get("content-length") || "0", 10)
+    const isChunked = (req.headers.get("transfer-encoding") || "").toLowerCase().includes("chunked")
+    if (isChunked || contentLength > MAX_INGEST_BYTES) {
+      recordHttpRequest("POST", "/api/track/events", 413, Date.now() - start)
+      return NextResponse.json(
+        { ok: false, error: "payload too large" },
+        { status: 413, headers: corsResponseHeaders(req, []) }
+      )
+    }
     // Sanitize the payload BEFORE any use — escapes HTML, strips control chars,
     // prevents prototype pollution, caps string/array/depth sizes. Returns a NEW
     // object; reassigned here so every downstream read (projectId, ingest, event
@@ -159,7 +174,7 @@ export async function POST(req: NextRequest) {
     // Fetch project to get siteUrl BEFORE ingest so we can validate origin.
     const project = await db.project.findFirst({
       where: { OR: [{ id: projectId }, { trackingId: projectId }] },
-      select: { siteUrl: true },
+      select: { id: true, siteUrl: true },
     })
     if (!project) {
       logger.warn("ingest_unknown_project", { requestId, projectId, entryPoint: "ingest" })
@@ -177,13 +192,13 @@ export async function POST(req: NextRequest) {
       logger.warn("ingest_origin_blocked", { requestId, origin: requestOrigin, projectId, entryPoint: "ingest" })
       recordHttpRequest("POST", "/api/track/events", 403, Date.now() - start)
       return NextResponse.json(
-        { error: "Origin not allowed" },
+        { ok: false, error: "Origin not allowed" },
         { status: 403, headers: corsResponseHeaders(req, allowedOrigins) }
       )
     }
 
     // Origin is allowed — proceed with ingest.
-    const result = await ingest(payload, req as unknown as Request)
+    const result = await ingest(payload, req as unknown as Request, project)
     if (!result.ok) {
       recordHttpRequest("POST", "/api/track/events", 404, Date.now() - start)
       return NextResponse.json(result, {

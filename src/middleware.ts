@@ -6,6 +6,8 @@ import {
   INGEST_LIMIT,
   API_LIMIT,
   USER_API_LIMIT,
+  USER_AI_LIMIT,
+  USER_EXPORT_LIMIT,
 } from "@/lib/rate-limit"
 import { validateCsrfToken, CSRF_HEADER_NAME, CSRF_COOKIE_NAME } from "@/lib/csrf"
 import {
@@ -215,6 +217,22 @@ function isCorsOriginAllowed(origin: string): boolean {
   return corsAllowlist().includes(origin)
 }
 
+// Extra `frame-ancestors` origins (workspace/preview panels).
+// Set EMBED_ORIGINS="" on self-hosted deployments to lock framing to 'self'.
+const EMBED_ORIGINS = (process.env.EMBED_ORIGINS ?? "https://*.space-z.ai http://*.space-z.ai")
+  .split(/[,\s]+/)
+  .filter(Boolean)
+  .join(" ")
+
+/** True iff `origin` is the request's OWN origin — same-origin browser
+ *  traffic is never subject to the cross-origin allowlist. */
+function isSameOriginRequest(req: NextRequest, origin: string): boolean {
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host")
+  if (!host) return false
+  const proto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https"
+  return origin === `${proto}://${host}` || origin === `http://${host}`
+}
+
 function isApiPath(path: string): boolean {
   return path === "/api" || path.startsWith("/api/")
 }
@@ -383,10 +401,10 @@ function buildCsp(nonce: string): string {
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https: blob:",
+    "img-src 'self' data: blob:",
     "font-src 'self' data:",
-    "connect-src 'self' ws: wss:",
-    "frame-ancestors 'self' https://*.space-z.ai http://*.space-z.ai",
+    "connect-src 'self'",
+    `frame-ancestors 'self'${EMBED_ORIGINS ? " " + EMBED_ORIGINS : ""}`,
     "form-action 'self'",
     "base-uri 'self'",
     "object-src 'none'",
@@ -773,7 +791,7 @@ export async function middleware(req: NextRequest) {
       // 403 otherwise. Max-Age is intentionally short (5 min) so a stale
       // CORS cache won't keep allowing an origin that's been removed from
       // the allowlist since the last preflight.
-      if (origin && isCorsOriginAllowed(origin)) {
+      if (origin && (isCorsOriginAllowed(origin) || isSameOriginRequest(req, origin))) {
         const res = new NextResponse(null, {
           status: 204,
           headers: {
@@ -808,7 +826,7 @@ export async function middleware(req: NextRequest) {
     // value), so those pass through and get Vary: Origin + (if origin
     // matches) Access-Control-Allow-Origin stamped on the final pass-through
     // response by stampCorsHeaders().
-    if (origin && !isCorsOriginAllowed(origin)) {
+    if (origin && !isCorsOriginAllowed(origin) && !isSameOriginRequest(req, origin)) {
       recordEdgeMetric(method, path, 403, Date.now() - start)
       const res = new NextResponse(
         JSON.stringify({ error: "CORS origin not allowed" }),
@@ -963,7 +981,10 @@ export async function middleware(req: NextRequest) {
   // Server Actions have their own limit via next.config.ts serverActions.bodySizeLimit.
   if (MUTATING_METHODS.has(method)) {
     const contentLength = parseInt(req.headers.get("content-length") || "0", 10)
-    if (contentLength > 15360) {
+    // Chunked bodies carry no Content-Length and would bypass the cap — and
+    // Layer 3b buffers the whole body for the HMAC, so reject them here.
+    const transferEncoding = (req.headers.get("transfer-encoding") || "").toLowerCase()
+    if (transferEncoding !== "" || contentLength > 15360) {
       recordEdgeMetric(method, path, 413, Date.now() - start)
       const res = new NextResponse(
         JSON.stringify({ error: "Payload too large (max 15KB)" }),
@@ -1232,7 +1253,14 @@ export async function middleware(req: NextRequest) {
     // is bounded against userId-spoofing-driven unbounded growth.
     const userId = extractUserIdFromSessionCookie(session)
     if (userId) {
-      const userRl = rateLimitByKey("user:" + userId, USER_API_LIMIT)
+      // Tighter documented caps for expensive endpoints (src/lib/rate-limit.ts):
+      // 10/min for LLM-backed AI routes, 5/min for PII-heavy CSV exports.
+      const userLimit = /^\/api\/projects\/[^/]+\/ai(-search)?(\/|$)/.test(path)
+        ? USER_AI_LIMIT
+        : /^\/api\/projects\/[^/]+\/export\/?$/.test(path)
+          ? USER_EXPORT_LIMIT
+          : USER_API_LIMIT
+      const userRl = rateLimitByKey("user:" + userId, userLimit)
       if (!userRl.allowed) {
         recordEdgeMetric(method, path, 429, Date.now() - start)
         // Retry-After = seconds until the per-user window resets.

@@ -32,7 +32,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string;
   void guard.session
   try {
     const tags = await db.tag.findMany({
-      where: { sessionId: sid },
+      where: { sessionId: sid, session: { projectId: id } },
       orderBy: { createdAt: "asc" },
       take: 100,
     })
@@ -66,6 +66,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const label = stripHtml(parsed.data.label, 50)
     const color = parsed.data.color || "primary"
     if (!label) return NextResponse.json({ error: "label required" }, { status: 400 })
+
+    // BOLA guard: the tag must land on a session of THIS project.
+    const parent = await db.session.findFirst({ where: { id: sid, projectId: id } })
+    if (!parent) return NextResponse.json({ error: "session not found" }, { status: 404 })
 
     const tag = await db.tag.upsert({
       where: { sessionId_label: { sessionId: sid, label } },

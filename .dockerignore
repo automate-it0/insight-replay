@@ -1,0 +1,12 @@
+# Keep secrets, PII and build noise out of the Docker build context.
+# The Dockerfile's `COPY . .` relies on this file — without it a plain
+# `docker build .` bakes .env secrets and the SQLite DB into the layers.
+node_modules
+.next
+.git
+.env
+.env.*
+db
+logs
+tests
+docs

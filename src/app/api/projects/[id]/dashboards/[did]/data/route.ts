@@ -38,7 +38,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string;
     }
 
     const rangeStr = req.nextUrl.searchParams.get("range") || "7"
-    const days = parseInt(rangeStr, 10) || 7
+    const n = parseInt(rangeStr, 10)
+    const days = Number.isFinite(n) && n > 0 && n < 3650 ? n : 7
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 
     // Fetch all sessions in range with the fields any widget may need

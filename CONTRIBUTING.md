@@ -45,7 +45,7 @@ bundle behind a Caddy gateway. No managed services, no Docker compose
 required to start the demo.
 
 - **Stack**: Next.js 16 (App Router) + TypeScript + Prisma + SQLite + Tailwind + shadcn/ui + Recharts + Socket.io.
-- **Tracking**: standalone SDK at `/api/track/script.js`, ingest at `/api/track/events`.
+- **Tracking**: standalone SDK at `/api/track/script`, ingest at `/api/track/events`.
 - **Realtime**: socket.io mini-service on port 3004 (`mini-services/live-service`).
 - **AI**: `z-ai-web-dev-sdk` for insights, session analysis, NL search.
 - **Dashboard**: 15 tabs — Overview, Dashboards, Recordings, Heatmaps, Live, Funnels, Journeys, Experiments, Visitors, Retention, Goals, Alerts, Insights, Errors, Settings.

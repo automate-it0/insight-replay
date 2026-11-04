@@ -35,6 +35,9 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
   // Capture project name BEFORE the delete so the audit entry has context.
   // (deleteMany would also be safe if the row is already gone; delete throws.)
   const existing = await db.project.findUnique({ where: { id }, select: { name: true } })
+  // Double-click / stale-list guard: delete throws P2025 on an already-removed
+  // row — answer a clean 404 instead (and skip the audit entry).
+  if (!existing) return NextResponse.json({ error: "not found" }, { status: 404 })
   await db.project.delete({ where: { id } })
   await auditLog({
     action: AUDIT_ACTIONS.PROJECT_DELETED,

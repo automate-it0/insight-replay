@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string;
   void guard.session
   try {
     const notes = await db.note.findMany({
-      where: { sessionId: sid },
+      where: { sessionId: sid, session: { projectId: id } },
       orderBy: { t: "asc" },
       take: 1000,
     })
@@ -58,6 +58,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const t = parsed.data.t
     const author = parsed.data.author ? stripHtml(parsed.data.author, 100) : "analyst"
     if (!text) return NextResponse.json({ error: "text required" }, { status: 400 })
+
+    // BOLA guard: the note must land on a session of THIS project — not
+    // just any globally-known sid.
+    const parent = await db.session.findFirst({ where: { id: sid, projectId: id } })
+    if (!parent) return NextResponse.json({ error: "session not found" }, { status: 404 })
 
     const note = await db.note.create({
       data: { sessionId: sid, text, t, author },

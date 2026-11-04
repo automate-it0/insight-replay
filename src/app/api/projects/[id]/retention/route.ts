@@ -14,8 +14,10 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   try {
     const range = req.nextUrl.searchParams.get("range") || "30"
     const cohortSizeParam = req.nextUrl.searchParams.get("cohortSize") || "7"
-    const days = parseInt(range, 10) || 30
-    const cohortSizeDays = Math.max(1, parseInt(cohortSizeParam, 10) || 7)
+    const dn = parseInt(range, 10)
+    const days = Number.isFinite(dn) && dn > 0 && dn < 3650 ? dn : 30
+    const cn = parseInt(cohortSizeParam, 10)
+    const cohortSizeDays = Number.isFinite(cn) && cn > 0 && cn <= 366 ? cn : 7
     const cohortMs = cohortSizeDays * DAY_MS
     const since = new Date(Date.now() - days * DAY_MS)
 

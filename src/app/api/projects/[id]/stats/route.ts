@@ -22,7 +22,10 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   void session
   const requestId = getRequestId(req as unknown as Request)
   try {
-    const range = req.nextUrl.searchParams.get("range") || "7"
+    const rangeParam = req.nextUrl.searchParams.get("range") || "7"
+    const daysNum = parseInt(rangeParam, 10)
+    const days = Number.isFinite(daysNum) && daysNum > 0 && daysNum < 3650 ? daysNum : 7
+    const range = String(days)
 
   // Cache key includes every input the response varies on (projectId + range).
   // No per-user data is cached under a key that does not identify the user —
@@ -33,7 +36,6 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     return NextResponse.json({ ...cached.body, cached: true, cachedAt: cached.cachedAt })
   }
 
-  const days = parseInt(range, 10)
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 
   const sessions = await db.session.findMany({

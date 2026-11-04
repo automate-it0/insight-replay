@@ -121,6 +121,11 @@ const apiRouteHeaders = [
 // route only. (Next.js merges headers() entries in order: later matchers win
 // on duplicate keys, so this entry sits after the global `/(.*)` matcher.)
 const sdkScriptHeaders = [
+  // Tracker is fetched cross-origin by third-party pages via a no-cors
+  // <script src>; the global CORP: same-origin would make the browser block
+  // that load. Later matchers win on duplicate keys, so this override
+  // neutralizes it for this route only.
+  { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
   {
     key: "Content-Security-Policy",
     value: "default-src 'none'; script-src 'self' 'unsafe-inline'",

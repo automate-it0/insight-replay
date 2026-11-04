@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { randomUUID } from "crypto"
 import { db } from "@/lib/db"
-import { hashApiKey, validateApiKey, unauthorizedResponse } from "@/lib/auth"
+import { hashApiKey } from "@/lib/auth"
+import { requireProjectAccess } from "@/lib/route-guards"
 import { auditLog, AUDIT_ACTIONS } from "@/lib/audit"
 import { getClientIP } from "@/lib/rate-limit"
 import { sanitizeError } from "@/lib/observability"
@@ -27,10 +28,13 @@ function maskKey(key: string): string {
  */
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
-  if (process.env.NODE_ENV === "production") {
-    const auth = await validateApiKey(req, id)
-    if (!auth.valid) return unauthorizedResponse()
-  }
+  // Session-gated like every sibling route (the apikeys cluster was the
+  // only one left on the raw dev-open validateApiKey pattern). API-key
+  // auth in production is still enforced by requireProjectAccess.
+  const guard = await requireProjectAccess(req as unknown as Request, id, "apikey_list", {
+    audit: false,
+  })
+  if (guard.error) return guard.error
   try {
     const keys = await db.apiKey.findMany({
       where: { projectId: id },
@@ -84,15 +88,15 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
  */
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
-  if (process.env.NODE_ENV === "production") {
-    const auth = await validateApiKey(req, id)
-    if (!auth.valid) return unauthorizedResponse()
-  }
+  const guard = await requireProjectAccess(req as unknown as Request, id, "apikey_create", {
+    audit: false,
+  })
+  if (guard.error) return guard.error
   try {
     const body = await req.json().catch(() => ({}))
     const { name } = body as { name?: string }
-    if (!name || typeof name !== "string" || !name.trim()) {
-      return NextResponse.json({ error: "name required" }, { status: 400 })
+    if (!name || typeof name !== "string" || !name.trim() || name.trim().length > 100) {
+      return NextResponse.json({ error: "name required (max 100 chars)" }, { status: 400 })
     }
 
     // Generate plaintext `ir_<32 hex>`. randomUUID provides sufficient entropy

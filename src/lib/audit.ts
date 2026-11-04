@@ -1,6 +1,7 @@
 import { mkdir, appendFile, readFile, stat } from "fs/promises";
 import { dirname, join } from "path";
 import { createHash, createHmac, randomBytes, scryptSync } from "crypto";
+import { logger } from "@/lib/observability";
 
 /**
  * File-based audit logging for security monitoring & compliance.
@@ -352,8 +353,10 @@ export async function auditLog(
       __hash: hash,
     }) + "\n";
     await appendFile(AUDIT_LOG_PATH, line, "utf8");
-  } catch {
-    // Intentionally swallowed — audit logging must never break the request.
+  } catch (err) {
+    // Still never breaks the request — but the failure must be visible to
+    // monitoring (disk full / permission errors must not vanish silently).
+    logger.error("audit_write_failed", { error: err instanceof Error ? err.message : String(err) });
   }
 }
 

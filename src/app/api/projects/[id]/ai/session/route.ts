@@ -175,7 +175,7 @@ async function handleAiSession(req: NextRequest, id: string, requestId: string) 
     return NextResponse.json({ analysis: null, error: "invalid body" }, { status: 200 })
   }
 
-  const sessionId = body.sessionId
+  const sessionId = typeof body.sessionId === "string" ? body.sessionId.slice(0, 100) : ""
   if (!sessionId) {
     return NextResponse.json({ analysis: null, error: "sessionId required" }, { status: 200 })
   }
@@ -267,10 +267,15 @@ async function handleAiSession(req: NextRequest, id: string, requestId: string) 
       ],
       thinking: { type: "disabled" },
     })
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("AI_TIMEOUT")), AI_TIMEOUT_MS)
-    )
-    const completion = (await Promise.race([completionPromise, timeoutPromise])) as {
+    // Clear the timer once the race settles — a fast LLM response otherwise
+    // leaves a dangling 30s timer (plus its closure) per request.
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error("AI_TIMEOUT")), AI_TIMEOUT_MS)
+    })
+    const completion = (await Promise.race([completionPromise, timeoutPromise]).finally(() => {
+      if (timeoutId !== undefined) clearTimeout(timeoutId)
+    })) as {
       choices?: { message?: { content?: string } }[]
     }
     const result = completion.choices?.[0]?.message?.content ?? ""

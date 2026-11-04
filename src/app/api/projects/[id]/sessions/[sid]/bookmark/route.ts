@@ -12,7 +12,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string;
   if (guard.error) return guard.error
   void guard.session
   try {
-    const bookmark = await db.bookmark.findUnique({ where: { sessionId: sid } })
+    const bookmark = await db.bookmark.findFirst({ where: { sessionId: sid, projectId: id } })
     return NextResponse.json({ bookmarked: !!bookmark, bookmark })
   } catch (e) {
     // Sanitized: log server-side, return generic message to client.
@@ -29,6 +29,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (guard.error) return guard.error
   void guard.session
   try {
+    // BOLA guard: the bookmark must toggle on a session of THIS project —
+    // otherwise a cross-project sid would persist a bookmark row linked to
+    // the URL project but sitting on another project's session.
+    const parent = await db.session.findFirst({ where: { id: sid, projectId: id } })
+    if (!parent) return NextResponse.json({ error: "session not found" }, { status: 404 })
+
     // Race-safety: the original toggle (findUnique → delete | create) had
     // a classic TOCTOU race — two concurrent POSTs could both see
     // `existing === null`, both call `db.bookmark.create`, and the second
@@ -43,7 +49,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     // caller won the create) and return `bookmarked: true` so the
     // client's UI reflects the actual state rather than an error.
     const result = await db.$transaction(async (tx) => {
-      const existing = await tx.bookmark.findUnique({ where: { sessionId: sid } })
+      const existing = await tx.bookmark.findFirst({ where: { sessionId: sid, projectId: id } })
       if (existing) {
         await tx.bookmark.delete({ where: { id: existing.id } })
         return { bookmarked: false, bookmark: null }

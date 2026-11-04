@@ -96,7 +96,7 @@ implemented end-to-end (SDK → ingest → DB → query → UI), not stubbed.
 
 ### Tracking, SDK & AI
 
-9. **Standalone tracking SDK** — served from `/api/track/script.js?pid=<id>&port=3004` so any site (including non-React, non-Next, static HTML) can opt in with one `<script>` tag. Self-initialises: localStorage visitorId, sessionStorage sessionId, UTM capture, error hooks (`window.onerror` + `unhandledrejection`), WebSocket open to the live-service.
+9. **Standalone tracking SDK** — served from `/api/track/script?pid=<id>&port=3004` so any site (including non-React, non-Next, static HTML) can opt in with one `<script>` tag. Self-initialises: localStorage visitorId, sessionStorage sessionId, UTM capture, error hooks (`window.onerror` + `unhandledrejection`), WebSocket open to the live-service.
 10. **Batched ingest with backpressure** — SDK buffers events locally and flushes every 4 s or 40 events (whichever first), plus on `visibilitychange` / `pagehide` / error. Server writes via `db.event.createMany` (single INSERT) so 1k events/s costs ~25 DB writes, not 1k.
 11. **AI-powered natural-language search** — ask "show me sessions from Firefox users who rage-clicked on the pricing page last week" in plain English; the LLM emits a structured filter the existing API runs against the DB. Backend-only via `z-ai-web-dev-sdk`, lazy-imported, fail-open to 200 on error.
 12. **AI session + project insights** — LLM-generated per-session qualitative summary (entry/exit, friction, likely intent) and a weekly project digest of top friction patterns, converting paths, and drop-off points.

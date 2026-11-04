@@ -39,7 +39,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string;
     }
 
     const range = req.nextUrl.searchParams.get("range") || "7"
-    const days = parseInt(range, 10)
+    const n = parseInt(range, 10)
+    const days = Number.isFinite(n) && n > 0 && n < 3650 ? n : 7
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 
     // Total sessions in range

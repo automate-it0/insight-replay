@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { verifyProjectAccess } from "@/lib/project-auth"
+import { requireProjectAccess } from "@/lib/route-guards"
 import { sanitizeError } from "@/lib/observability"
 
-export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: string; gid: string }> }) {
+export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string; gid: string }> }) {
   const { id, gid } = await ctx.params
-  const { session, error } = await verifyProjectAccess(id)
-  if (error) return error
-  void session
+  const guard = await requireProjectAccess(req as unknown as Request, id, "segment_delete")
+  if (guard.error) return guard.error
   try {
     await db.segment.deleteMany({ where: { id: gid, projectId: id } })
     return NextResponse.json({ ok: true })

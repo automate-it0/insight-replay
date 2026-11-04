@@ -282,6 +282,11 @@ io.on('connection', (socket) => {
     }
 
     role = 'viewer'
+    if (viewerProject && viewerProject !== data.projectId) {
+      // Leave the previous room so repeated "subscribe" events cannot
+      // accumulate rooms unboundedly over a long-lived connection.
+      void socket.leave(`proj:${viewerProject}`)
+    }
     viewerProject = data.projectId
     void socket.join(`proj:${data.projectId}`)
     // send current active sessions for this project

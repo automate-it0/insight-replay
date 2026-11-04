@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { db } from "@/lib/db"
-import { verifyProjectAccess } from "@/lib/project-auth"
+import { requireProjectAccess } from "@/lib/route-guards"
 import { sanitizeError } from "@/lib/observability"
 import { stripHtml } from "@/lib/sanitize"
 
@@ -14,11 +14,12 @@ const SegmentCreateSchema = z.object({
   filters: z.record(z.string(), z.unknown()).optional(),
 })
 
-export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
-  const { session, error } = await verifyProjectAccess(id)
-  if (error) return error
-  void session
+  const guard = await requireProjectAccess(req as unknown as Request, id, "segments_list", {
+    enforceApiKey: "never",
+  })
+  if (guard.error) return guard.error
   try {
     const segments = await db.segment.findMany({
       where: { projectId: id },
@@ -40,9 +41,8 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params
-  const { session, error } = await verifyProjectAccess(id)
-  if (error) return error
-  void session
+  const guard = await requireProjectAccess(req as unknown as Request, id, "segment_create")
+  if (guard.error) return guard.error
   try {
     const body = await req.json()
     const parsed = SegmentCreateSchema.safeParse(body)
