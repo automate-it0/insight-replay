@@ -139,6 +139,20 @@ const sdkScriptHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
 ];
 
+// Static asset Cache-Control. Files under `public/` are served from the
+// site root (not /_next/static/*), so they do NOT inherit Next.js's
+// automatic long-lived immutable caching. Without these explicit
+// headers the browser re-fetches logo.svg on every navigation, which
+// shows up as a tiny but real LCP tax on returning visitors.
+// max-age=31536000 (1 year) is the canonical "forever" TTL — safe
+// because the asset URLs are not versioned and a content change is
+// expected to also bump the file's mtime (Caddy/nginx fronting the
+// app will ETag it). `immutable` suppresses the conditional revalidation
+// round trip entirely.
+const publicAssetHeaders = [
+  { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+];
+
 const nextConfig: NextConfig = {
   output: "standalone",
   /* config options here */
@@ -185,6 +199,21 @@ const nextConfig: NextConfig = {
       {
         source: "/api/track/script",
         headers: sdkScriptHeaders,
+      },
+      // Cache public/ static assets for 1 year (immutable). Without this
+      // the browser re-fetches logo.svg / robots.txt / og-image.png on
+      // every navigation — a real LCP tax on returning visitors.
+      {
+        source: "/logo.svg",
+        headers: publicAssetHeaders,
+      },
+      {
+        source: "/robots.txt",
+        headers: publicAssetHeaders,
+      },
+      {
+        source: "/og-image.png",
+        headers: publicAssetHeaders,
       },
     ];
   },

@@ -216,7 +216,7 @@ export const LiveTab = memo(function LiveTab({ projectId }: { projectId: string 
           </div>
           <DemoSiteButton projectId={projectId} />
         </div>
-        <div className="relative shadow-2xl mx-auto" style={{ width: 1280 }}>
+        <div className="relative shadow-2xl mx-auto" style={{ width: 1280, contain: "layout style paint" }}>
           <PageMock url="/" width={1280} />
           {/* cursor overlay */}
           {cursorList.map((c) => (
