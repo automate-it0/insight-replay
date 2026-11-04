@@ -28,6 +28,16 @@ export default function Error({
       <p className="max-w-md text-sm text-muted-foreground">
         An unexpected error occurred while rendering this view. The error was
         logged — you can retry or navigate back.
+        {error.digest ? (
+          <>
+            <br />
+            <br />
+            Reference:{" "}
+            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
+              {error.digest}
+            </code>
+          </>
+        ) : null}
       </p>
       <Button onClick={reset} variant="outline">
         Try again
