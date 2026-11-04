@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, memo } from "react"
 import { api, fmtNumber, fmtDuration } from "@/lib/api"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -66,15 +66,24 @@ interface Stats {
 
 const PIE_COLORS = ["oklch(0.72 0.16 162)", "oklch(0.74 0.16 230)", "oklch(0.78 0.18 70)", "oklch(0.66 0.22 320)", "oklch(0.68 0.2 16)"]
 
-export function OverviewTab({ projectId, range }: { projectId: string; range: string }) {
+export const OverviewTab = memo(function OverviewTab({ projectId, range }: { projectId: string; range: string }) {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let alive = true
     setLoading(true)
     void api<Stats>(`/api/projects/${projectId}/stats?range=${range}`)
-      .then(setStats)
-      .finally(() => setLoading(false))
+      .then((d) => {
+        if (alive) setStats(d)
+      })
+      .catch(() => {}) // keep stats null on failure — empty state renders, no unhandled rejection
+      .finally(() => {
+        if (alive) setLoading(false)
+      })
+    return () => {
+      alive = false
+    }
   }, [projectId, range])
 
   const tMaybe = stats?.totals
@@ -348,7 +357,7 @@ export function OverviewTab({ projectId, range }: { projectId: string; range: st
       </div>
     </div>
   )
-}
+})
 
 function Kpi({ icon, label, value, sub, danger, accent }: { icon: React.ReactNode; label: string; value: string; sub: string; danger?: boolean; accent?: boolean }) {
   return (

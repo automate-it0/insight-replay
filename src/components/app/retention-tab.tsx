@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, memo } from "react"
 import { api, fmtRelative } from "@/lib/api"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -14,7 +14,7 @@ interface RetentionData {
   returningVisitors: number
 }
 
-export function RetentionTab({ projectId, range }: { projectId: string; range: string }) {
+export const RetentionTab = memo(function RetentionTab({ projectId, range }: { projectId: string; range: string }) {
   const [data, setData] = useState<RetentionData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -149,4 +149,4 @@ export function RetentionTab({ projectId, range }: { projectId: string; range: s
       )}
     </div>
   )
-}
+})

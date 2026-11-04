@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useEffect, useMemo, useState } from "react"
+import { memo, useEffect, useMemo, useRef, useState } from "react"
 import { api, fmtRelative } from "@/lib/api"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -78,17 +78,19 @@ export const ExperimentsTab = memo(function ExperimentsTab({ projectId, range }:
     }
   }
 
+  const analyzeSeq = useRef(0)
   async function analyze(exp: Experiment) {
+    const seq = ++analyzeSeq.current
     setActive(exp)
     setAnalyzing(true)
     setAnalysis(null)
     try {
       const d = await api<Analysis>(`/api/projects/${projectId}/experiments/${exp.id}/analyze`)
-      setAnalysis(d)
+      if (seq === analyzeSeq.current) setAnalysis(d)
     } catch {
-      toast.error("Failed to analyze experiment")
+      if (seq === analyzeSeq.current) toast.error("Failed to analyze experiment")
     } finally {
-      setAnalyzing(false)
+      if (seq === analyzeSeq.current) setAnalyzing(false)
     }
   }
 

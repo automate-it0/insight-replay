@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useEffect, useMemo, useState } from "react"
+import { memo, useEffect, useMemo, useRef, useState } from "react"
 import { api, fmtRelative } from "@/lib/api"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -65,15 +65,20 @@ export const AlertsTab = memo(function AlertsTab({ projectId }: { projectId: str
   const [evaluating, setEvaluating] = useState<string | null>(null)
   const [form, setForm] = useState({ name: "", metric: "sessions", condition: "gt", threshold: "10", windowMin: "60" })
 
+  const dataVersion = useRef(0)
   async function load() {
+    const version = ++dataVersion.current
     setLoading(true)
     try {
       const [a, h] = await Promise.all([
         api<{ alerts: Alert[] }>(`/api/projects/${projectId}/alerts`),
         api<{ history: AlertHistoryItem[] }>(`/api/projects/${projectId}/alerts/history`),
       ])
+      if (version !== dataVersion.current) return
       setAlerts(a.alerts)
       setHistory(h.history)
+    } catch {
+      // keep previous rows — poll failures must not clear the list
     } finally {
       setLoading(false)
     }
@@ -118,15 +123,21 @@ export const AlertsTab = memo(function AlertsTab({ projectId }: { projectId: str
         body: JSON.stringify({ enabled: !a.enabled }),
       })
       setAlerts((arr) => arr.map((x) => (x.id === a.id ? { ...x, enabled: !x.enabled } : x)))
-    } catch {}
+      dataVersion.current++
+    } catch {
+      toast.error("Failed to update alert")
+    }
   }
 
   async function remove(id: string) {
     try {
       await api(`/api/projects/${projectId}/alerts/${id}`, { method: "DELETE" })
       setAlerts((arr) => arr.filter((x) => x.id !== id))
+      dataVersion.current++
       toast.success("Alert deleted")
-    } catch {}
+    } catch {
+      toast.error("Failed to delete alert")
+    }
   }
 
   async function evaluate(a: Alert) {
@@ -152,7 +163,10 @@ export const AlertsTab = memo(function AlertsTab({ projectId }: { projectId: str
     try {
       await api(`/api/projects/${projectId}/alerts/history/${hid}`, { method: "PATCH" })
       setHistory((h) => h.map((x) => (x.id === hid ? { ...x, acknowledged: true } : x)))
-    } catch {}
+      dataVersion.current++
+    } catch {
+      toast.error("Failed to acknowledge alert")
+    }
   }
 
   // Pre-compute label lookup maps from the constant METRICS / CONDITIONS arrays

@@ -75,19 +75,33 @@ const TABS = [
 const FILTERABLE_TABS = ["overview", "recordings", "insights"]
 
 export const ProjectView = memo(function ProjectView() {
-  const { activeProjectId, tab, setTab, range, setRange, goHome } = useApp()
+  const activeProjectId = useApp((s) => s.activeProjectId)
+  const tab = useApp((s) => s.tab)
+  const setTab = useApp((s) => s.setTab)
+  const range = useApp((s) => s.range)
+  const setRange = useApp((s) => s.setRange)
+  const goHome = useApp((s) => s.goHome)
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeNow, setActiveNow] = useState(0)
 
   useEffect(() => {
     if (!activeProjectId) return
+    let alive = true
     setLoading(true)
     void api<{ project: Project; counts: { _count: number } }>(
       `/api/projects/${activeProjectId}`
     )
-      .then((d) => setProject(d.project))
-      .finally(() => setLoading(false))
+      .then((d) => {
+        if (alive) setProject(d.project)
+      })
+      .catch(() => {}) // fetch failed — fall through to the not-found fallback
+      .finally(() => {
+        if (alive) setLoading(false)
+      })
+    return () => {
+      alive = false
+    }
   }, [activeProjectId])
 
   useEffect(() => {

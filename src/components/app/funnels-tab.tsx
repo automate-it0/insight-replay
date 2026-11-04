@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useEffect, useMemo, useState } from "react"
+import { memo, useEffect, useMemo, useRef, useState } from "react"
 import { api } from "@/lib/api"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -54,17 +54,19 @@ export const FunnelsTab = memo(function FunnelsTab({ projectId, range }: { proje
     }
   }
 
+  const analyzeSeq = useRef(0)
   async function analyzeFunnel(f: Funnel) {
+    const seq = ++analyzeSeq.current
     setActive(f)
     setAnalyzing(true)
     setAnalyze(null)
     try {
       const d = await api<Analyze>(`/api/projects/${projectId}/funnels/${f.id}/analyze?range=${range}`)
-      setAnalyze(d)
+      if (seq === analyzeSeq.current) setAnalyze(d)
     } catch {
-      toast.error("Failed to analyze funnel")
+      if (seq === analyzeSeq.current) toast.error("Failed to analyze funnel")
     } finally {
-      setAnalyzing(false)
+      if (seq === analyzeSeq.current) setAnalyzing(false)
     }
   }
 

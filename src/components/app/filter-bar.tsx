@@ -33,13 +33,21 @@ interface Stats {
 }
 
 export const FilterBar = memo(function FilterBar({ projectId, range }: { projectId: string; range: string }) {
-  const { filters, setFilters, resetFilters } = useApp()
+  const filters = useApp((s) => s.filters)
+  const setFilters = useApp((s) => s.setFilters)
+  const resetFilters = useApp((s) => s.resetFilters)
   const [stats, setStats] = useState<Stats | null>(null)
 
   useEffect(() => {
+    let alive = true
     api<Stats>(`/api/projects/${projectId}/stats?range=${range}`)
-      .then(setStats)
+      .then((d) => {
+        if (alive) setStats(d)
+      })
       .catch(() => {})
+    return () => {
+      alive = false
+    }
   }, [projectId, range])
 
   const activeCount = useMemo(

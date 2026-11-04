@@ -163,7 +163,7 @@ export function AiSearchBar({ projectId, range }: { projectId: string; range: st
       )}
 
       {activeSession && (
-        <RecordingPlayer sessionId={activeSession} onClose={() => setActiveSession(null)} />
+        <RecordingPlayer sessionId={activeSession} projectId={projectId} onClose={() => setActiveSession(null)} />
       )}
     </div>
   )

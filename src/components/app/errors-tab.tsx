@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, memo } from "react"
 import { api, fmtRelative } from "@/lib/api"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -36,7 +36,7 @@ interface ErrorsData {
   }
 }
 
-export function ErrorsTab({ projectId, range }: { projectId: string; range: string }) {
+export const ErrorsTab = memo(function ErrorsTab({ projectId, range }: { projectId: string; range: string }) {
   const [data, setData] = useState<ErrorsData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -158,7 +158,7 @@ export function ErrorsTab({ projectId, range }: { projectId: string; range: stri
       )}
     </div>
   )
-}
+})
 
 function DeviceIcon({ device }: { device: string }) {
   if (device === "mobile") return <Smartphone className="h-3 w-3" />

@@ -49,7 +49,10 @@ export const Sidebar = memo(function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [name, setName] = useState("")
   const [url, setUrl] = useState("")
-  const { view, activeProjectId, openProject, goHome } = useApp()
+  const view = useApp((s) => s.view)
+  const activeProjectId = useApp((s) => s.activeProjectId)
+  const openProject = useApp((s) => s.openProject)
+  const goHome = useApp((s) => s.goHome)
 
   useEffect(() => {
     const handler = (e: Event) => {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { api, fmtRelative } from "@/lib/api"
 import {
   Popover,
@@ -26,15 +26,17 @@ export function AlertBell({ projectId }: { projectId: string }) {
   const [history, setHistory] = useState<AlertHistoryItem[]>([])
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
-  const { setTab } = useApp()
+  const setTab = useApp((s) => s.setTab)
 
+  const dataVersion = useRef(0)
   async function load() {
+    const version = ++dataVersion.current
     setLoading(true)
     try {
       const d = await api<{ history: AlertHistoryItem[] }>(
         `/api/projects/${projectId}/alerts/history`
       )
-      setHistory(d.history)
+      if (version === dataVersion.current) setHistory(d.history)
     } catch {
       // ignore
     } finally {
@@ -54,7 +56,10 @@ export function AlertBell({ projectId }: { projectId: string }) {
     try {
       await api(`/api/projects/${projectId}/alerts/history/${hid}`, { method: "PATCH" })
       setHistory((h) => h.map((x) => (x.id === hid ? { ...x, acknowledged: true } : x)))
-    } catch {}
+      dataVersion.current++
+    } catch {
+      // the badge count stays stale until the next poll — non-critical
+    }
   }
 
   return (

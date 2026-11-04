@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useEffect, useMemo, useState } from "react"
+import { memo, useEffect, useMemo, useRef, useState } from "react"
 import { api, fmtDuration, fmtRelative } from "@/lib/api"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -20,6 +20,7 @@ import {
   Sparkles,
 } from "lucide-react"
 import { RecordingPlayer } from "./recording-player"
+import { useApp } from "@/store/app"
 
 interface Session {
   id: string
@@ -39,6 +40,10 @@ interface Session {
   screenWidth: number
   screenHeight: number
   language: string
+  isNewVisitor: boolean
+  hasError: boolean
+  convertedGoal: string | null
+  utmSource: string | null
 }
 
 type Filter = "all" | "rage" | "dead" | "active"
@@ -51,15 +56,19 @@ export const RecordingsTab = memo(function RecordingsTab({ projectId, range }: {
   const [activeSession, setActiveSession] = useState<string | null>(null)
   const [aiMode, setAiMode] = useState(false)
 
+  const loadSeq = useRef(0)
   async function load() {
+    const seq = ++loadSeq.current
     setLoading(true)
     try {
       const data = await api<{ sessions: Session[] }>(
         `/api/projects/${projectId}/sessions?range=${range}&filter=${filter}&q=${encodeURIComponent(q)}`
       )
-      setSessions(data.sessions)
+      if (seq === loadSeq.current) setSessions(data.sessions)
+    } catch {
+      // keep previous rows on failure — no unhandled rejection
     } finally {
-      setLoading(false)
+      if (seq === loadSeq.current) setLoading(false)
     }
   }
 
@@ -76,6 +85,27 @@ export const RecordingsTab = memo(function RecordingsTab({ projectId, range }: {
       { id: "dead", label: "Dead clicks", icon: MousePointerClick },
     ],
     []
+  )
+
+  // Store-driven FilterBar chips: previously written to the store but never
+  // read here — the badges rendered without ever affecting the list. Applied
+  // client-side to the fetched page.
+  const storeFilters = useApp((s) => s.filters)
+  const visible = useMemo(
+    () =>
+      sessions.filter(
+        (s) =>
+          (!storeFilters.device || s.device === storeFilters.device) &&
+          (!storeFilters.browser || s.browser === storeFilters.browser) &&
+          (!storeFilters.country || s.country === storeFilters.country) &&
+          (!storeFilters.utmSource || s.utmSource === storeFilters.utmSource) &&
+          (storeFilters.isNewVisitor == null || s.isNewVisitor === storeFilters.isNewVisitor) &&
+          (!storeFilters.hasRageClick || s.hasRageClick) &&
+          (!storeFilters.hasDeadClick || s.hasDeadClick) &&
+          (!storeFilters.hasError || s.hasError) &&
+          (!storeFilters.convertedGoal || !!s.convertedGoal)
+      ),
+    [sessions, storeFilters]
   )
 
   return (
@@ -139,7 +169,7 @@ export const RecordingsTab = memo(function RecordingsTab({ projectId, range }: {
               )
             })}
           </div>
-          <span className="text-xs text-muted-foreground ml-auto" aria-live="polite">{sessions.length} sessions</span>
+          <span className="text-xs text-muted-foreground ml-auto" aria-live="polite">{visible.length} sessions</span>
         </div>
       )}
 
@@ -151,13 +181,13 @@ export const RecordingsTab = memo(function RecordingsTab({ projectId, range }: {
               <Skeleton key={i} className="h-16 rounded-lg" />
             ))}
           </div>
-        ) : sessions.length === 0 ? (
+        ) : visible.length === 0 ? (
           <div className="p-10 text-center text-sm text-muted-foreground">
             No sessions match your filters.
           </div>
         ) : (
           <div className="divide-y divide-border/40" role="list" aria-label="Sessions">
-            {sessions.map((s) => (
+            {visible.map((s) => (
               <button
                 key={s.id}
                 onClick={() => setActiveSession(s.id)}
@@ -224,7 +254,7 @@ export const RecordingsTab = memo(function RecordingsTab({ projectId, range }: {
       </div>
 
       {activeSession && (
-        <RecordingPlayer sessionId={activeSession} onClose={() => setActiveSession(null)} />
+        <RecordingPlayer sessionId={activeSession} projectId={projectId} onClose={() => setActiveSession(null)} />
       )}
     </div>
   )

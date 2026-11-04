@@ -47,7 +47,7 @@ export const DashboardView = memo(function DashboardView() {
   const [loading, setLoading] = useState(true)
   const [statsByProject, setStatsByProject] = useState<Record<string, Stats["totals"]>>({})
   const [seeding, setSeeding] = useState(false)
-  const { openProject } = useApp()
+  const openProject = useApp((s) => s.openProject)
 
   async function load() {
     setLoading(true)
@@ -68,6 +68,10 @@ export const DashboardView = memo(function DashboardView() {
       const map: Record<string, Stats["totals"]> = {}
       for (const [id, t] of entries) if (t) map[id] = t
       setStatsByProject(map)
+    } catch {
+      // API outage — show the error toast instead of silently rendering the
+      // "No projects yet" empty-state CTA (which would mislead the user).
+      toast.error("Failed to load projects")
     } finally {
       setLoading(false)
     }

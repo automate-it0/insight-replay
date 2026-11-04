@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, type ComponentType } from "react"
+import { useEffect, useState, type ComponentType, memo } from "react"
 import { api, fmtRelative } from "@/lib/api"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -39,7 +39,7 @@ const META: Record<string, { label: string; icon: ComponentType<{ className?: st
   quick_back: { label: "Quick backs", icon: TrendingUp, color: "text-violet-400", bg: "bg-violet-500/15" },
 }
 
-export function InsightsTab({ projectId, range }: { projectId: string; range: string }) {
+export const InsightsTab = memo(function InsightsTab({ projectId, range }: { projectId: string; range: string }) {
   const [insights, setInsights] = useState<Insight[]>([])
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
@@ -158,10 +158,10 @@ export function InsightsTab({ projectId, range }: { projectId: string; range: st
         )}
       </Card>
 
-      {active && <RecordingPlayer sessionId={active} onClose={() => setActive(null)} />}
+      {active && <RecordingPlayer sessionId={active} projectId={projectId} onClose={() => setActive(null)} />}
     </div>
   )
-}
+})
 
 function DeviceIcon({ device }: { device: string }) {
   if (device === "mobile") return <Smartphone className="h-3 w-3" />

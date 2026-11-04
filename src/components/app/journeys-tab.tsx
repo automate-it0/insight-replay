@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, memo } from "react"
 import { api } from "@/lib/api"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -26,15 +26,24 @@ const COLORS = [
   "oklch(0.65 0.18 280)",
 ]
 
-export function JourneysTab({ projectId, range }: { projectId: string; range: string }) {
+export const JourneysTab = memo(function JourneysTab({ projectId, range }: { projectId: string; range: string }) {
   const [data, setData] = useState<JourneyData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let alive = true
     setLoading(true)
     void api<JourneyData>(`/api/projects/${projectId}/journeys?range=${range}`)
-      .then(setData)
-      .finally(() => setLoading(false))
+      .then((d) => {
+        if (alive) setData(d)
+      })
+      .catch(() => {}) // keep the previous chart on failure — no unhandled rejection
+      .finally(() => {
+        if (alive) setLoading(false)
+      })
+    return () => {
+      alive = false
+    }
   }, [projectId, range])
 
   // Build a layered sankey: Start → top entry pages → ... → Exit
@@ -148,7 +157,7 @@ export function JourneysTab({ projectId, range }: { projectId: string; range: st
 
                 {/* Column 3: Exit */}
                 <FlowColumn title="Exit">
-                  {data.ends.sort((a, b) => b.count - a.count).slice(0, 5).map((e, i) => (
+                  {[...data.ends].sort((a, b) => b.count - a.count).slice(0, 5).map((e, i) => (
                     <FlowNode key={e.url + i} label={e.url} value={e.count} color="oklch(0.5 0 0)" />
                   ))}
                 </FlowColumn>
@@ -187,7 +196,7 @@ export function JourneysTab({ projectId, range }: { projectId: string; range: st
               <Card className="p-5">
                 <h3 className="font-semibold text-sm mb-3">Entry pages</h3>
                 <div className="space-y-2">
-                  {data.starts.sort((a, b) => b.count - a.count).slice(0, 6).map((s) => (
+                  {[...data.starts].sort((a, b) => b.count - a.count).slice(0, 6).map((s) => (
                     <div key={s.url} className="flex items-center justify-between text-xs">
                       <span className="font-mono truncate">{s.url}</span>
                       <span className="text-muted-foreground shrink-0 ml-2">{s.count}</span>
@@ -198,7 +207,7 @@ export function JourneysTab({ projectId, range }: { projectId: string; range: st
               <Card className="p-5">
                 <h3 className="font-semibold text-sm mb-3">Exit pages</h3>
                 <div className="space-y-2">
-                  {data.ends.sort((a, b) => b.count - a.count).slice(0, 6).map((s) => (
+                  {[...data.ends].sort((a, b) => b.count - a.count).slice(0, 6).map((s) => (
                     <div key={s.url} className="flex items-center justify-between text-xs">
                       <span className="font-mono truncate">{s.url}</span>
                       <span className="text-muted-foreground shrink-0 ml-2">{s.count}</span>
@@ -212,7 +221,7 @@ export function JourneysTab({ projectId, range }: { projectId: string; range: st
       )}
     </div>
   )
-}
+})
 
 function FlowColumn({ title, children }: { title: string; children: React.ReactNode }) {
   return (

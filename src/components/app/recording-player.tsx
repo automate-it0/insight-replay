@@ -65,7 +65,15 @@ interface TagRow {
 
 const SPEEDS = [0.5, 1, 2, 4]
 
-export function RecordingPlayer({ sessionId, onClose }: { sessionId: string; onClose: () => void }) {
+export function RecordingPlayer({
+  sessionId,
+  projectId: knownPid,
+  onClose,
+}: {
+  sessionId: string
+  projectId?: string
+  onClose: () => void
+}) {
   const [session, setSession] = useState<SessionRow | null>(null)
   const [events, setEvents] = useState<EventRow[]>([])
   const [insights, setInsights] = useState<InsightRow[]>([])
@@ -112,7 +120,10 @@ export function RecordingPlayer({ sessionId, onClose }: { sessionId: string; onC
     ;void (async () => {
       try {
         const { projects } = await api<{ projects: { id: string }[] }>("/api/projects")
-        for (const p of projects) {
+        // All callers already know the project — probing every project's
+        // session endpoint serially is pure latency when it's not first.
+        const candidates = knownPid ? projects.filter((p) => p.id === knownPid) : projects
+        for (const p of candidates) {
           try {
             const d = await api<{ session: SessionRow; events: EventRow[]; insights: InsightRow[] }>(
               `/api/projects/${p.id}/sessions/${sessionId}`
@@ -147,7 +158,7 @@ export function RecordingPlayer({ sessionId, onClose }: { sessionId: string; onC
     return () => {
       alive = false
     }
-  }, [sessionId])
+  }, [sessionId, knownPid])
 
   async function runAI() {
     if (!session) return
@@ -258,6 +269,14 @@ export function RecordingPlayer({ sessionId, onClose }: { sessionId: string; onC
 
   // Compute current replay state (pure helper — see recording-player-helpers.ts)
   const state: ReplayState = useMemo(() => computeReplayState(events, currentTime), [events, currentTime])
+
+  // Seek-bar markers: recomputed only when `events` changes — this filter
+  // previously ran on every animation frame during playback (60×/s over up
+  // to 5000 events, allocating a fresh array + 120 elements each frame).
+  const seekMarkers = useMemo(
+    () => events.filter((e) => e.type === "click" || e.type === "pageview").slice(0, 120),
+    [events]
+  )
 
   const seek = useCallback(
     (t: number) => {
@@ -469,9 +488,7 @@ export function RecordingPlayer({ sessionId, onClose }: { sessionId: string; onC
                   style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }}
                 />
                 {/* event markers */}
-                {events
-                  .filter((e) => e.type === "click" || e.type === "pageview")
-                  .slice(0, 120)
+                {seekMarkers
                   .map((e, i) => (
                     <div
                       key={i}
@@ -797,9 +814,15 @@ function TimelineTab({
   seek: (t: number) => void
   errors: ErrorRow[]
 }) {
-  const timelineEvents = events
-    .filter((e) => ["pageview", "click", "scroll", "keypress", "visibility"].includes(e.type))
-    .slice(0, 200)
+  // Memoized: the timeline re-renders every rAF frame (currentTime prop) —
+  // this filter only depends on `events`.
+  const timelineEvents = useMemo(
+    () =>
+      events
+        .filter((e) => ["pageview", "click", "scroll", "keypress", "visibility"].includes(e.type))
+        .slice(0, 200),
+    [events]
+  )
   return (
     <div>
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Event timeline</div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useEffect, useMemo, useState } from "react"
+import { memo, useEffect, useMemo, useRef, useState } from "react"
 import { api, fmtRelative, fmtDuration } from "@/lib/api"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -36,7 +36,7 @@ interface Visitor {
   city: string
   isNewVisitor: boolean
   convertedGoal: string
-  tags: string[]
+  tags: { label: string; color: string }[]
 }
 
 interface VisitorDetail {
@@ -53,7 +53,7 @@ interface VisitorDetail {
     browsers: string[]
     countries: string[]
     conversionCount: number
-    tags: string[]
+    tags: { label: string; color: string }[]
     sessions: any[]
   }
 }
@@ -66,15 +66,19 @@ export const VisitorsTab = memo(function VisitorsTab({ projectId, range }: { pro
   const [detail, setDetail] = useState<VisitorDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
 
+  const loadSeq = useRef(0)
   async function load() {
+    const seq = ++loadSeq.current
     setLoading(true)
     try {
       const d = await api<{ visitors: Visitor[] }>(
         `/api/projects/${projectId}/visitors?range=${range}&q=${encodeURIComponent(q)}`
       )
-      setVisitors(d.visitors)
+      if (seq === loadSeq.current) setVisitors(d.visitors)
+    } catch {
+      // keep previous rows on failure — no unhandled rejection
     } finally {
-      setLoading(false)
+      if (seq === loadSeq.current) setLoading(false)
     }
   }
 
@@ -83,15 +87,19 @@ export const VisitorsTab = memo(function VisitorsTab({ projectId, range }: { pro
     return () => clearTimeout(t)
   }, [projectId, range, q])
 
+  const detailSeq = useRef(0)
   async function openVisitor(vid: string) {
+    const seq = ++detailSeq.current
     setActiveVisitor(vid)
     setDetailLoading(true)
     setDetail(null)
     try {
       const d = await api<VisitorDetail>(`/api/projects/${projectId}/visitors/${vid}`)
-      setDetail(d)
+      if (seq === detailSeq.current) setDetail(d)
+    } catch {
+      // leave detail null — the drawer shows its empty state
     } finally {
-      setDetailLoading(false)
+      if (seq === detailSeq.current) setDetailLoading(false)
     }
   }
 
@@ -161,7 +169,7 @@ export const VisitorsTab = memo(function VisitorsTab({ projectId, range }: { pro
                 {v.tags.length > 0 && (
                   <div className="hidden xl:flex gap-1">
                     {v.tags.slice(0, 2).map((t) => (
-                      <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary">{t}</span>
+                      <span key={t.label} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary">{t.label}</span>
                     ))}
                   </div>
                 )}
@@ -247,7 +255,7 @@ function VisitorDrawer({
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Tags</div>
                 <div className="flex flex-wrap gap-1.5">
                   {detail.visitor.tags.map((t) => (
-                    <Badge key={t} variant="secondary" className="text-[10px]">{t}</Badge>
+                    <Badge key={t.label} variant="secondary" className="text-[10px]">{t.label}</Badge>
                   ))}
                 </div>
               </div>

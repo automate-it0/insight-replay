@@ -89,6 +89,7 @@ export const EMPTY_REPLAY_STATE: ReplayState = {
 export function computeRipples(events: EventRow[], currentTime: number): Ripple[] {
   const ripples: Ripple[] = []
   for (const e of events) {
+    if (e.t > currentTime) break // events are t-asc — nothing later can be in range
     if (e.type !== "click") continue
     const age = currentTime - e.t
     if (age >= 0 && age <= 600) {
@@ -139,11 +140,15 @@ export function computeReplayState(events: EventRow[], currentTime: number): Rep
   let lastMove: EventRow | null = null
   let nextMove: EventRow | null = null
 
-  // Pre-collect mousemove events so we can fall back to the first one when
-  // no move has happened yet at currentTime = 0.
-  const moves: EventRow[] = []
+  // First mousemove in the session — fallback cursor position when no move
+  // has happened yet at currentTime = 0. (Was a full array collect that ran
+  // every animation frame for a single element read.)
+  let firstMove: EventRow | null = null
   for (const e of events) {
-    if (e.type === "mousemove") moves.push(e)
+    if (e.type === "mousemove") {
+      firstMove = e
+      break
+    }
   }
 
   // Linear scan up to currentTime.
@@ -171,9 +176,9 @@ export function computeReplayState(events: EventRow[], currentTime: number): Rep
   } else if (lastMove) {
     x = lastMove.x
     y = lastMove.y
-  } else if (moves.length) {
-    x = moves[0].x
-    y = moves[0].y
+  } else if (firstMove) {
+    x = firstMove.x
+    y = firstMove.y
   }
 
   return {

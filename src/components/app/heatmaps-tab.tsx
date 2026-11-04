@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, memo } from "react"
 import { api, fmtNumber } from "@/lib/api"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -50,7 +50,7 @@ const PAGE_HEIGHTS: Record<string, number> = {
 }
 const BASE_WIDTH = 1280
 
-export function HeatmapsTab({ projectId, range }: { projectId: string; range: string }) {
+export const HeatmapsTab = memo(function HeatmapsTab({ projectId, range }: { projectId: string; range: string }) {
   const [url, setUrl] = useState("/")
   const [kind, setKind] = useState<"click" | "move" | "scroll">("click")
   const [data, setData] = useState<HeatData | ScrollData | null>(null)
@@ -230,22 +230,26 @@ export function HeatmapsTab({ projectId, range }: { projectId: string; range: st
       </div>
     </div>
   )
-}
+})
+
+// Classic heatmap color ramp — stops hoisted to module scope: ramp() runs
+// once per non-transparent pixel (~millions per draw); the per-call array
+// allocation was pure GC churn on the main thread.
+const RAMP_STOPS: [number, [number, number, number]][] = [
+  [0.0, [30, 80, 220]],
+  [0.25, [40, 180, 200]],
+  [0.45, [90, 220, 90]],
+  [0.65, [240, 220, 60]],
+  [0.82, [240, 130, 40]],
+  [1.0, [240, 60, 60]],
+]
 
 // Classic heatmap color ramp
 function ramp(v: number): [number, number, number] {
   // 0 -> blue, 0.3 -> cyan/green, 0.6 -> yellow, 0.85 -> orange, 1 -> red/white
-  const stops: [number, [number, number, number]][] = [
-    [0.0, [30, 80, 220]],
-    [0.25, [40, 180, 200]],
-    [0.45, [90, 220, 90]],
-    [0.65, [240, 220, 60]],
-    [0.82, [240, 130, 40]],
-    [1.0, [240, 60, 60]],
-  ]
-  for (let i = 0; i < stops.length - 1; i++) {
-    const [a, ca] = stops[i]
-    const [b, cb] = stops[i + 1]
+  for (let i = 0; i < RAMP_STOPS.length - 1; i++) {
+    const [a, ca] = RAMP_STOPS[i]
+    const [b, cb] = RAMP_STOPS[i + 1]
     if (v <= b) {
       const f = (v - a) / (b - a || 1)
       return [
@@ -255,7 +259,7 @@ function ramp(v: number): [number, number, number] {
       ]
     }
   }
-  return stops[stops.length - 1][1]
+  return RAMP_STOPS[RAMP_STOPS.length - 1][1]
 }
 
 function ScrollDepthView({

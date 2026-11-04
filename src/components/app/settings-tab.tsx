@@ -39,7 +39,7 @@ export const SettingsTab = memo(function SettingsTab({ project }: { project: Pro
   // every re-render (e.g. when the copied state flips).
   const snippet = useMemo(
     () => `<!-- Insight Replay tracking snippet -->
-<script async src="${typeof window !== "undefined" ? window.location.origin : "https://your-host"}/api/track/script.js?pid=${project.id}&port=3004"></script>`,
+<script async src="${typeof window !== "undefined" ? window.location.origin : "https://your-host"}/api/track/script?pid=${project.id}&port=3004"></script>`,
     [project.id]
   )
 

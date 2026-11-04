@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useEffect, useMemo, useState } from "react"
+import { memo, useEffect, useMemo, useRef, useState } from "react"
 import { api, fmtNumber, fmtDuration } from "@/lib/api"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -62,7 +62,7 @@ const METRIC_ICONS: Record<string, any> = {
   uniqueVisitors: Users,
 }
 
-export function DashboardsTab({ projectId, range }: { projectId: string; range: string }) {
+export const DashboardsTab = memo(function DashboardsTab({ projectId, range }: { projectId: string; range: string }) {
   const [dashboards, setDashboards] = useState<Dashboard[]>([])
   const [active, setActive] = useState<Dashboard | null>(null)
   const [widgetData, setWidgetData] = useState<Record<string, any>>({})
@@ -85,7 +85,9 @@ export function DashboardsTab({ projectId, range }: { projectId: string; range: 
     }
   }
 
+  const dataSeq = useRef(0)
   async function loadDashboardData(dash: Dashboard) {
+    const seq = ++dataSeq.current
     setDataLoading(true)
     setActive(dash)
     setWidgetData({})
@@ -93,11 +95,11 @@ export function DashboardsTab({ projectId, range }: { projectId: string; range: 
       const d = await api<{ widgets: Record<string, { data: any }> }>(
         `/api/projects/${projectId}/dashboards/${dash.id}/data?range=${range}`
       )
-      setWidgetData(d.widgets)
+      if (seq === dataSeq.current) setWidgetData(d.widgets)
     } catch {
-      toast.error("Failed to load dashboard data")
+      if (seq === dataSeq.current) toast.error("Failed to load dashboard data")
     } finally {
-      setDataLoading(false)
+      if (seq === dataSeq.current) setDataLoading(false)
     }
   }
 
@@ -270,7 +272,7 @@ export function DashboardsTab({ projectId, range }: { projectId: string; range: 
       </Dialog>
     </div>
   )
-}
+})
 
 const WidgetRenderer = memo(function WidgetRenderer({ widget, data }: { widget: Widget; data: any }) {
   if (widget.type === "metric") {
