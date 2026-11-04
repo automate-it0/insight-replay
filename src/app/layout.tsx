@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
@@ -28,6 +28,19 @@ export const metadata: Metadata = {
   keywords: ["analytics", "session replay", "heatmap", "live tracking", "Clarity"],
   authors: [{ name: "Insight Replay" }],
   icons: { icon: "/logo.svg" },
+};
+
+// Separate `viewport` export (Next.js 14+ App Router requirement).
+// Moving `themeColor` and `viewport` properties out of `metadata` and into
+// this dedicated export silences the build-time deprecation warning and
+// makes the viewport meta tag explicit — `width=device-width, initialScale=1`
+// is what prevents the iOS Safari auto-zoom-on-focus CLS contribution.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Pin theme color to the dashboard's --background token so the iOS
+  // status bar / Android browser chrome matches the dark UI.
+  themeColor: "#0a0a0a",
 };
 
 export default async function RootLayout({
