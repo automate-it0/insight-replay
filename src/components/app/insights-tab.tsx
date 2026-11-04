@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, type ComponentType, memo } from "react"
+import { useEffect, useState, useMemo, type ComponentType, memo } from "react"
 import { api, fmtRelative } from "@/lib/api"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -69,7 +69,7 @@ export const InsightsTab = memo(function InsightsTab({ projectId, range }: { pro
     }
   }, [projectId, range])
 
-  const total = Object.values(counts).reduce((a, b) => a + b, 0)
+  const total = useMemo(() => Object.values(counts).reduce((a, b) => a + b, 0), [counts])
 
   return (
     <div className="h-full overflow-y-auto scroll-thin p-6 space-y-5">
