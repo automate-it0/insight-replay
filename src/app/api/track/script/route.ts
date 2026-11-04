@@ -254,7 +254,11 @@ export async function GET(req: NextRequest) {
 `
   const headers: Record<string, string> = {
     "Content-Type": "application/javascript; charset=utf-8",
-    "Cache-Control": "no-store",
+    // The SDK is immutable per (pid, port) URL — cacheable at the edge and in
+    // the browser (300s bounds the stale window after server upgrades).
+    "Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
+    // ACAO is reflected per-origin — never share a cached copy across origins.
+    "Vary": "Origin",
     // MIME-confusion defense: never let a browser sniff this response as
     // anything other than the JS we're serving.
     "X-Content-Type-Options": "nosniff",

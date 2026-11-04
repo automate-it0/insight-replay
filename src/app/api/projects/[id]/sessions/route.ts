@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { db } from "@/lib/db"
 import { verifyProjectAccess } from "@/lib/project-auth"
+import { cacheGet, cacheSet } from "@/lib/cache"
+
+// 5s micro-cache TTL — see the cache site inside GET below.
+const SESSIONS_TTL_MS = 5_000
 
 // Query-string schema for GET /api/projects/[id]/sessions. `range` is parsed
 // to a bounded integer; `q` is capped at 200 chars (search filter applied in
@@ -51,6 +55,12 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   const q = parsed.data.q
   const filter = parsed.data.filter
 
+  // 5s micro-cache — the Live tab polls this endpoint every 10s, so ≤5s
+  // staleness sits inside its own granularity (socket.io covers real-time).
+  const cacheKey = `sessions:${id}:${days}:${filter}:${q}`
+  const cached = cacheGet<{ sessions: unknown }>(cacheKey)
+  if (cached) return NextResponse.json(cached)
+
   const where: Record<string, unknown> = { projectId: id, startedAt: { gte: since } }
   if (filter === "rage") where.hasRageClick = true
   if (filter === "dead") where.hasDeadClick = true
@@ -75,5 +85,6 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     )
   }
 
+  cacheSet(cacheKey, { sessions }, SESSIONS_TTL_MS)
   return NextResponse.json({ sessions })
 }

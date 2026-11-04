@@ -118,12 +118,10 @@ export const HeatmapsTab = memo(function HeatmapsTab({ projectId, range }: { pro
     for (let i = 0; i < sd.length; i += 4) {
       const a = sd[i + 3]
       if (a === 0) continue
-      const v = a / 255
-      const [r, g, b] = ramp(v)
-      od[i] = r
-      od[i + 1] = g
-      od[i + 2] = b
-      od[i + 3] = Math.min(255, 60 + v * 200)
+      od[i] = RAMP_R[a]
+      od[i + 1] = RAMP_G[a]
+      od[i + 2] = RAMP_B[a]
+      od[i + 3] = A_LUT[a]
     }
     ctx.putImageData(out, 0, 0)
   }
@@ -260,6 +258,21 @@ function ramp(v: number): [number, number, number] {
     }
   }
   return RAMP_STOPS[RAMP_STOPS.length - 1][1]
+}
+
+// Precomputed 256-entry LUTs built from ramp() — alpha is a byte, so every
+// possible input is covered and the multi-million-pixel loop above becomes a
+// tight byte copy with zero per-pixel allocation.
+const RAMP_R = new Uint8Array(256)
+const RAMP_G = new Uint8Array(256)
+const RAMP_B = new Uint8Array(256)
+const A_LUT = new Uint8Array(256)
+for (let a = 0; a < 256; a++) {
+  const [lr, lg, lb] = ramp(a / 255)
+  RAMP_R[a] = lr
+  RAMP_G[a] = lg
+  RAMP_B[a] = lb
+  A_LUT[a] = Math.min(255, 60 + (a / 255) * 200)
 }
 
 function ScrollDepthView({

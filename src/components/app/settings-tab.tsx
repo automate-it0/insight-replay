@@ -32,15 +32,20 @@ interface Project {
 
 export const SettingsTab = memo(function SettingsTab({ project }: { project: Project }) {
   const [copied, setCopied] = useState(false)
-  const { goHome } = useApp()
+  const goHome = useApp((s) => s.goHome)
 
   // Tracking snippet string derived from the project id + the current window
   // origin. Memoized so the pre/textarea below doesn't change identity on
   // every re-render (e.g. when the copied state flips).
+  // Real origin lands one tick after mount (server/first render keep the
+  // placeholder) — avoids a render-time window read that would mismatch if
+  // this tree ever server-renders.
+  const [origin, setOrigin] = useState("https://your-host")
+  useEffect(() => setOrigin(window.location.origin), [])
   const snippet = useMemo(
     () => `<!-- Insight Replay tracking snippet -->
-<script async src="${typeof window !== "undefined" ? window.location.origin : "https://your-host"}/api/track/script?pid=${project.id}&port=3004"></script>`,
-    [project.id]
+<script async src="${origin}/api/track/script?pid=${project.id}&port=3004"></script>`,
+    [origin, project.id]
   )
 
   const copy = () => {
@@ -262,11 +267,14 @@ function ApiKeysSection({ projectId }: { projectId: string }) {
   }
   useEffect(() => { void load() }, [projectId])
 
+  const [creating, setCreating] = useState(false)
   async function create() {
+    if (creating) return
     if (!newName.trim()) {
       toast.error("Name required")
       return
     }
+    setCreating(true)
     try {
       const d = await api<{ apiKey: { id: string; name: string; key: string; keyMasked: string; createdAt: string; lastUsed: null } }>(`/api/projects/${projectId}/apikeys`, {
         method: "POST",
@@ -276,7 +284,7 @@ function ApiKeysSection({ projectId }: { projectId: string }) {
       setRevealed({ [d.apiKey.id]: true })
       setNewName("")
       toast.success("API key created — copy it now, it won't be shown again")
-    } catch { toast.error("Failed to create key") }
+    } catch { toast.error("Failed to create key") } finally { setCreating(false) }
   }
 
   async function remove(id: string) {
@@ -284,7 +292,9 @@ function ApiKeysSection({ projectId }: { projectId: string }) {
       await api(`/api/projects/${projectId}/apikeys/${id}`, { method: "DELETE" })
       setKeys((k) => k.filter((x) => x.id !== id))
       toast.success("Key revoked")
-    } catch {}
+    } catch {
+      toast.error("Failed to revoke key")
+    }
   }
 
   return (
@@ -298,7 +308,7 @@ function ApiKeysSection({ projectId }: { projectId: string }) {
       <div className="flex gap-2 mb-4">
         <label htmlFor="new-api-key-name" className="sr-only">New API key name</label>
         <Input id="new-api-key-name" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Key name (e.g. Data pipeline)" aria-label="New API key name" className="h-9" onKeyDown={(e) => e.key === "Enter" && create()} />
-        <Button size="sm" className="gap-1.5" onClick={create}><Plus className="h-3.5 w-3.5" aria-hidden="true" /> Create</Button>
+        <Button size="sm" className="gap-1.5" onClick={create} disabled={creating}><Plus className="h-3.5 w-3.5" aria-hidden="true" /> {creating ? "Creating…" : "Create"}</Button>
       </div>
 
       {loading ? (

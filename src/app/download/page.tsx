@@ -15,7 +15,7 @@ export default function DownloadPage() {
   }, [])
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-card/40 p-4">
+    <div dir="rtl" lang="ar" className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-card/40 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto mb-3 h-14 w-14 rounded-2xl bg-primary/15 flex items-center justify-center">
@@ -64,7 +64,7 @@ export default function DownloadPage() {
 
           <div className="pt-3 border-t border-border/40">
             <p className="text-[11px] text-muted-foreground mb-2">طريقة التشغيل بعد التحميل:</p>
-            <pre className="text-[10px] text-left bg-background/60 rounded-md p-2 font-mono overflow-x-auto">
+            <pre dir="ltr" className="text-[10px] text-left bg-background/60 rounded-md p-2 font-mono overflow-x-auto">
 {`unzip insight-replay.zip -d insight-replay/
 cd insight-replay/
 bun install

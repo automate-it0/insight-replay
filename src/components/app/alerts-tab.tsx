@@ -90,11 +90,14 @@ export const AlertsTab = memo(function AlertsTab({ projectId }: { projectId: str
     return () => clearInterval(t)
   }, [projectId])
 
+  const [creating, setCreating] = useState(false)
   async function handleCreate() {
+    if (creating) return
     if (!form.name.trim()) {
       toast.error("Name required")
       return
     }
+    setCreating(true)
     try {
       await api(`/api/projects/${projectId}/alerts`, {
         method: "POST",
@@ -113,18 +116,24 @@ export const AlertsTab = memo(function AlertsTab({ projectId }: { projectId: str
       void load()
     } catch {
       toast.error("Failed to create alert")
+    } finally {
+      setCreating(false)
     }
   }
 
   async function toggle(a: Alert) {
+    // Optimistic flip with rollback — a switch is the canonical instant
+    // control. Bump the version FIRST so an in-flight poll can't clobber
+    // the local patch mid-flight.
+    dataVersion.current++
+    setAlerts((arr) => arr.map((x) => (x.id === a.id ? { ...x, enabled: !x.enabled } : x)))
     try {
       await api(`/api/projects/${projectId}/alerts/${a.id}`, {
         method: "PATCH",
         body: JSON.stringify({ enabled: !a.enabled }),
       })
-      setAlerts((arr) => arr.map((x) => (x.id === a.id ? { ...x, enabled: !x.enabled } : x)))
-      dataVersion.current++
     } catch {
+      setAlerts((arr) => arr.map((x) => (x.id === a.id ? { ...x, enabled: a.enabled } : x)))
       toast.error("Failed to update alert")
     }
   }
@@ -315,7 +324,7 @@ export const AlertsTab = memo(function AlertsTab({ projectId }: { projectId: str
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreate}>Create alert</Button>
+            <Button onClick={handleCreate} disabled={creating}>{creating ? "Creating…" : "Create alert"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

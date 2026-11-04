@@ -3,6 +3,10 @@ import { z } from "zod"
 import { db } from "@/lib/db"
 import { sanitizeError, getRequestId } from "@/lib/observability"
 import { verifyProjectAccess } from "@/lib/project-auth"
+import { cacheGet, cacheSet } from "@/lib/cache"
+
+// 5s micro-cache TTL — see the cache site inside GET below.
+const VISITORS_TTL_MS = 5_000
 
 function mostCommon(arr: string[]): string {
   if (arr.length === 0) return "Unknown"
@@ -56,6 +60,13 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     const q = parsed.data.q
     const days = parsed.data.range
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+
+    // 5s micro-cache: the response is project-scoped (not viewer-scoped —
+    // same argument as the stats cache) and this is the dashboard's most
+    // expensive repeated GET. Auth already ran above; never bypassed.
+    const cacheKey = `visitors:${id}:${days}:${q}`
+    const cached = cacheGet<unknown>(cacheKey)
+    if (cached) return NextResponse.json(cached)
 
     const sessions = await db.session.findMany({
       where: { projectId: id, startedAt: { gte: since } },
@@ -183,12 +194,14 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     visitors.sort((a, b) => (a.lastSeen < b.lastSeen ? 1 : a.lastSeen > b.lastSeen ? -1 : 0))
     const limited = visitors.slice(0, 100)
 
-    return NextResponse.json({
+    const body = {
       range: days,
       q: ql || null,
       totalVisitors: visitors.length,
       visitors: limited,
-    })
+    }
+    cacheSet(cacheKey, body, VISITORS_TTL_MS)
+    return NextResponse.json(body)
   } catch (e) {
     const { status, body } = sanitizeError(e, requestId, "visitors")
     return NextResponse.json(body, { status })

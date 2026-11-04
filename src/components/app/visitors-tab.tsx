@@ -203,6 +203,15 @@ function VisitorDrawer({
   loading: boolean
   onClose: () => void
 }) {
+  // Escape-to-close — the universal dialog gesture (the recording player
+  // already does this).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose()
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [onClose])
   return (
     <div
       className="fixed inset-y-0 right-0 z-40 w-full max-w-md bg-card border-l border-border shadow-2xl flex flex-col"

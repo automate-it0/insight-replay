@@ -126,6 +126,12 @@ const sdkScriptHeaders = [
   // that load. Later matchers win on duplicate keys, so this override
   // neutralizes it for this route only.
   { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+  // The SDK is immutable per (pid, port) URL — let browsers/edges cache it
+  // instead of re-downloading ~6KB on every tracked pageview. 300s bounds
+  // the stale window after server upgrades.
+  { key: "Cache-Control", value: "public, max-age=300, stale-while-revalidate=3600" },
+  // ACAO is reflected per-origin — never share a cached copy across origins.
+  { key: "Vary", value: "Origin" },
   {
     key: "Content-Security-Policy",
     value: "default-src 'none'; script-src 'self' 'unsafe-inline'",

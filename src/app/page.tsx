@@ -28,6 +28,12 @@ import { Loader2 } from "lucide-react"
 
 type AuthState = "checking" | "authenticated" | "unauthenticated"
 
+// Kick the auth probe off when this chunk is parsed so the /me round trip
+// overlaps JS parse + hydration instead of starting after the first effect
+// flush. One-shot: cleared on first read so post-login remounts re-fetch.
+let meProbe: Promise<Response> | null =
+  typeof window === "undefined" ? null : fetch("/api/auth/me", { cache: "no-store" })
+
 export default function Home() {
   const view = useApp((s) => s.view)
   const router = useRouter()
@@ -35,7 +41,10 @@ export default function Home() {
 
   useEffect(() => {
     let alive = true
-    fetch("/api/auth/me", { cache: "no-store" })
+    const probe = meProbe
+    meProbe = null
+    const req = probe ?? fetch("/api/auth/me", { cache: "no-store" })
+    req
       .then((r) => {
         if (!alive) return null
         if (r.status === 401) {

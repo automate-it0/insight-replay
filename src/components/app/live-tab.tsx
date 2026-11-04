@@ -271,8 +271,8 @@ function Cursor({ c }: { c: LiveCursor }) {
         )
       })}
       <div
-        className="absolute pointer-events-none transition-all duration-100"
-        style={{ left: c.x, top: c.y }}
+        className="absolute top-0 left-0 pointer-events-none transition-transform duration-100 will-change-transform"
+        style={{ transform: `translate3d(${c.x}px, ${c.y}px, 0)` }}
       >
         <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
           <path

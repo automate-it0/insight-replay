@@ -16,6 +16,9 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  // Mono first renders deep in the authenticated dashboard — don't spend
+  // ~23KB of preload priority on it for the public /login page.
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -55,7 +58,9 @@ export default async function RootLayout({
           Skip to content
         </a>
         {children}
-        <Toaster />
+        {/* Forced-dark app — pin the toaster theme so a light OS preference
+            can't render light toasts on the dark UI (no ThemeProvider exists). */}
+        <Toaster theme="dark" />
       </body>
     </html>
   );

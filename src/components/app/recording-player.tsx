@@ -119,10 +119,11 @@ export function RecordingPlayer({
     projectIdRef.current = null
     ;void (async () => {
       try {
-        const { projects } = await api<{ projects: { id: string }[] }>("/api/projects")
-        // All callers already know the project — probing every project's
-        // session endpoint serially is pure latency when it's not first.
-        const candidates = knownPid ? projects.filter((p) => p.id === knownPid) : projects
+        // All callers pass the project id — skip the /api/projects round trip
+        // entirely; the list probe remains only as the fallback path.
+        const candidates = knownPid
+          ? [{ id: knownPid }]
+          : (await api<{ projects: { id: string }[] }>("/api/projects")).projects
         for (const p of candidates) {
           try {
             const d = await api<{ session: SessionRow; events: EventRow[]; insights: InsightRow[] }>(
@@ -310,6 +311,10 @@ export function RecordingPlayer({
   // Keyboard controls
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Never hijack keystrokes typed into the player's own inputs (tag/note
+      // fields) — space toggling playback while typing broke multi-word notes.
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return
       if (e.key === " ") {
         e.preventDefault()
         togglePlayRef.current()
@@ -443,8 +448,8 @@ export function RecordingPlayer({
                   {/* cursor */}
                   {showCursor && (
                     <div
-                      className="absolute pointer-events-none transition-[left,top] duration-75"
-                      style={{ left: state.x, top: state.y, transform: "translate(-2px,-2px)" }}
+                      className="absolute top-0 left-0 pointer-events-none transition-transform duration-75 will-change-transform"
+                      style={{ transform: `translate3d(${state.x - 2}px, ${state.y - 2}px, 0)` }}
                     >
                       <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
                         <path
