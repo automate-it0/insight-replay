@@ -245,7 +245,7 @@ export const DashboardView = memo(function DashboardView() {
   )
 })
 
-function HeroStat({
+const HeroStat = memo(function HeroStat({
   icon,
   label,
   value,
@@ -271,9 +271,9 @@ function HeroStat({
       <div className="text-2xl font-semibold mt-1">{value}</div>
     </div>
   )
-}
+})
 
-function MiniStat({
+const MiniStat = memo(function MiniStat({
   label,
   value,
   accent,
@@ -288,4 +288,4 @@ function MiniStat({
       <div className={`text-lg font-semibold ${accent ? "text-primary" : ""}`}>{value}</div>
     </div>
   )
-}
+})
