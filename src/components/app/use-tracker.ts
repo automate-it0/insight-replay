@@ -60,7 +60,7 @@ export function useTracker(projectId: string | null | undefined) {
     const utmCampaign = getQuery("utm_campaign") || ""
     const entryUrl = location.pathname + location.search
 
-    const push = (type: string, extra: any = {}) => {
+    const push = (type: string, extra: Record<string, unknown> = {}) => {
       const ev = {
         type,
         t: Date.now() - startTs,

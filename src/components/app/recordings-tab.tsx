@@ -18,6 +18,7 @@ import {
   Zap,
   ChevronRight,
   Sparkles,
+  type LucideIcon,
 } from "lucide-react"
 import { RecordingPlayer } from "./recording-player"
 import { useApp } from "@/store/app"
@@ -77,7 +78,7 @@ export const RecordingsTab = memo(function RecordingsTab({ projectId, range }: {
     return () => clearTimeout(t)
   }, [projectId, range, filter, q])
 
-  const filters: { id: Filter; label: string; icon: any }[] = useMemo(
+  const filters: { id: Filter; label: string; icon: LucideIcon }[] = useMemo(
     () => [
       { id: "all", label: "All", icon: PlayCircle },
       { id: "active", label: "Active", icon: Zap },
